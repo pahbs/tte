@@ -60,23 +60,9 @@ Output: one COG per tile, `tte_<source>_<tile_num 7 digits>.tif`, float32, NaN =
 `tte_classification`, `tcc`. Pixels outside the 1-degree tile are NaN, so tiles mosaic
 without double counting. Class names are in the band 4 tags.
 
-## Notes on reproducing GEE workflow
-
-* **Grid**: the asset is LAEA 30 m, not lon/lat (found from the asset metadata).
-* **GEE pyramids**: GEE did not read Hansen and GSW at full resolution everywhere. North of
-  about 64.07 N it read pyramid level 1 (2x2 blocks): `treecover2000` = mean rounded half up,
-  `lossyear` = one pixel of the 2x2 ('sample'), water = any of the 2x2. South of that, full
-  resolution. `--no_gee_emulation` turns this off (full resolution everywhere).
-* **Inputs used by GEE that the Python version cannot read**:
-  `users/paulmontesano/tte_L7/cal_2010_2015/cal_2m_tcc` (North America TCC in v201902) is not
-  shared with the service account. The Python default uses Hansen 2010 everywhere, so North
-  America will not match v201902v2 (it is like the GEE v201907 setting, "all Hansen").
-* **Zones 3 vs 4** used a TCC relative error (Feng et al.); both are class 9, so the Python
-  version writes zone 3 for all TCC > 30 unless an error layer is supplied.
-
 ## Validation against the original TTE map tiles
 
-Differences: mainly just do to resampling of data coming out of GEE
+Differences: mainly just due to resampling of data coming out of GEE
 
 `validation/validation.md`: 13 tiles. Eurasia (Hansen in both) 90-94% same class; North America
 differs because GEE used `cal_2m_tcc` there.
