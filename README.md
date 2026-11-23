@@ -1,6 +1,8 @@
 # Taiga-tundra ecotone (TTE) forest structure pattern map
 
-Python, no Earth Engine. Reproduces the GEE map
+<img src="docs/img/tte_boreal_polar_map.png" align="right" width="380" alt="Circumpolar map of the taiga-tundra ecotone forest structure pattern classes (circa 2010)">
+
+Reproducibity & scalability (on NASA MAAP) of the original Google Earth Engine (GEE) workflow using Python 
 `projects/foreststructure/TTE_DATA_v201902v2` (circa 2010) and runs on MAAP DPS with any
 tree canopy cover (TCC) input.
 
@@ -8,15 +10,15 @@ tree canopy cover (TCC) input.
 > The bioclimatic extent and pattern of the cold edge of the boreal forest: the circumpolar
 > taiga-tundra ecotone. *Environ. Res. Lett.* 15, 105019. https://doi.org/10.1088/1748-9326/abb2c7
 
-| What | Where |
+| Component | Location |
 |---|---|
 | Core code + command line | `lib/tte_map.py` |
 | DPS algorithm `run_tte_map` | `dps/alg_tte_map/` (run.sh, build.sh, env.yml, run_tte_map.yml) |
-| Register / submit notebook | `dps/DPS_tte_map.ipynb` |
-| Compare with the GEE tiles | `validation/validate_tte_vs_gee.py` |
+| DPS register / submit notebook | `dps/DPS_tte_map.ipynb` |
+| Comparison with the GEE tiles | `validation/validate_tte_vs_gee.py` |
 | Original GEE scripts | `gee/` |
 
-## Method, in plain steps
+## Methods for reproducing original GEE workflow
 
 For each 1-degree tile (`tte_tiles.gpkg`, same tiles as the GEE download):
 
@@ -58,7 +60,7 @@ Output: one COG per tile, `tte_<source>_<tile_num 7 digits>.tif`, float32, NaN =
 `tte_classification`, `tcc`. Pixels outside the 1-degree tile are NaN, so tiles mosaic
 without double counting. Class names are in the band 4 tags.
 
-## Reproducing GEE exactly: what it took
+## Notes on reproducing GEE workflow
 
 * **Grid**: the asset is LAEA 30 m, not lon/lat (found from the asset metadata).
 * **GEE pyramids**: GEE did not read Hansen and GSW at full resolution everywhere. North of
@@ -72,12 +74,14 @@ without double counting. Class names are in the band 4 tags.
 * **Zones 3 vs 4** used a TCC relative error (Feng et al.); both are class 9, so the Python
   version writes zone 3 for all TCC > 30 unless an error layer is supplied.
 
-## Validation against the GEE tiles
+## Validation against the original TTE map tiles
+
+Differences: mainly just do to resampling of data coming out of GEE
 
 `validation/validation.md`: 13 tiles. Eurasia (Hansen in both) 90-94% same class; North America
 differs because GEE used `cal_2m_tcc` there.
 
-## Running
+## Run examples
 
 ```bash
 # one tile, Hansen 2010, on MAAP Hub (kernel or terminal)
@@ -87,5 +91,7 @@ python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte
 python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte --tcc_source path \
     --tcc_paths s3://bucket/my_tcc_2020.vrt --tcc_resampling average --out_name mytcc2020
 ```
+
+## Scaling with MAAP DPS for any TCC input
 
 On DPS: `dps/DPS_tte_map.ipynb`.
