@@ -42,7 +42,7 @@ COLLECTION_DESCRIPTION = (
     'Forest structure pattern classes of the circumpolar taiga-tundra ecotone, from the spatial pattern of '
     '30 m tree canopy cover (TCC) inside a bioclimatic TTE domain, following Montesano et al. (2020). '
     'Python port of the Google Earth Engine workflow that made TTE_DATA_v201902v2, run on MAAP DPS with '
-    'any TCC input (item property tte:tcc_source). One item per 1-degree tile; 5-band COG on the original '
+    'any TCC input (item properties tte:tcc_source, tte:tcc_options). One item per 1-degree tile; 5-band COG on the original '
     'north polar Lambert azimuthal equal-area 30 m grid. Code: https://github.com/pahbs/tte')
 LICENSE = 'CC-BY-4.0'
 DOI = '10.1088/1748-9326/abb2c7'
@@ -94,34 +94,24 @@ def tile_summary(out, tcc, domain, inside):
     }
 
 
-def run_properties(tile_num, tcc_source, tcc_label, tcc_year, hansen_version, tcc_paths, tcc_scale,
-                   tcc_resampling, gsw_version, domain_path, emulate_gee, meta_version=None, meta_ht_min=None):
+def run_properties(tile_num, tcc_source, tcc_label, tcc_year, tcc_options, tcc_paths, gsw_version,
+                   domain_path, emulate_gee):
     """How the tile was made. These (except the code version) make the item id signature."""
+    import tte_tcc_sources as ts
     p = {
         'tte:tile_num': int(tile_num),
         'tte:tcc_source': tcc_source,
         'tte:tcc_label': tcc_label,
         'tte:tcc_year': int(tcc_year),
+        'tte:tcc_options': ts.parse_options(tcc_options),
+        'tte:tcc_description': ts.tcc_description(tcc_source, tcc_year, tcc_options),
         'tte:gee_pyramid_emulation': bool(emulate_gee),
         'tte:water': f'JRC Global Surface Water v{gsw_version} occurrence >= {tm.WATER_OCC_MIN} set to TCC 0',
         'tte:domain': os.path.basename(str(domain_path)),
         'tte:zone_thresholds_pct': {'sparse_max': tm.SPARSE_MAX, 'open_max': tm.OPEN_MAX},
     }
-    if tcc_source == 'hansen':
-        p['tte:hansen_version'] = hansen_version
-        p['tte:tcc_description'] = (f'Hansen et al. (2013) Global Forest Change {hansen_version}: treecover2000 '
-                                    f'with loss from 2001 to {tcc_year - 1} set to 0')
-    elif tcc_source == 'meta_chm':
-        p['tte:meta_chm_version'] = meta_version
-        p['tte:meta_ht_min_m'] = meta_ht_min
-        p['tte:tcc_description'] = (f'Meta/WRI canopy height map {meta_version}: percent of ~1 m pixels >= '
-                                    f'{meta_ht_min} m in each 30 m cell (imagery dates vary by place; '
-                                    f'tte:tcc_year is the nominal year given at submission)')
-    else:
-        p['tte:tcc_paths'] = list(tcc_paths or [])
-        p['tte:tcc_scale'] = float(tcc_scale)
-        p['tte:tcc_resampling'] = tcc_resampling
-        p['tte:tcc_description'] = 'Tree canopy cover rasters given in tte:tcc_paths'
+    if tcc_paths:
+        p['tte:tcc_paths'] = list(tcc_paths)
     return p
 
 

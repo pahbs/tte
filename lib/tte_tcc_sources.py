@@ -1,10 +1,15 @@
 """
 Tree canopy cover (TCC) inputs for the TTE map (lib/tte_map.py).
 
+The TTE workflow takes any tree cover source by name (`SOURCES`, below): `read_tcc` reads it,
+`tcc_label` names the outputs, `tcc_description` describes it in the metadata. Source-specific
+settings go in an options string, 'key=value;key=value' (see each source's `options`); the
+option `floor` (TCC below it set to 0) works for every source.
+
 Each reader returns percent tree cover (float32, 0-100, NaN = no data) on a target
 grid, normally the 30 m north-polar LAEA grid from tte_map.laea_grid_for_bounds.
 
-  tm.tcc_hansen     Hansen GFC treecover2000, loss before `year` removed (GEE's input in Eurasia)
+  tcc_hansen        Hansen et al. 2013 Global Forest Change: treecover2000, loss before `year` removed
   tcc_gee_tte       the TCC stored in the GEE map itself (TTE_DATA_v201902v2 'tcc' band): GEE's
                     input, i.e. cal_2m_tcc in North America, Hansen 2010 in Eurasia. Recoverable
                     inside the TTE domain, because the map only leaves out pixels with TCC 0 and no
@@ -187,13 +192,13 @@ def tcc_gee_tte(transform, shape, paths):
     return np.nan_to_num(_clean(tc), nan=0.0)
 
 
-def tcc_above_boreal(transform, shape, year=2010, resampling=Resampling.nearest):
+def tcc_above_boreal(transform, shape, year, resampling=Resampling.nearest):
     """Feng et al. 2022 ABoVE boreal TCC (ORNL DAAC 2012): 2.5-degree COGs, EPSG:4326, 0.00025 deg, nodata 255."""
     g = cmr_granules('Boreal_CanopyCover_StandAge_2012', _box(transform, shape), year, f'_tcc_{year}.tif')
     return _clean(_read_daac('ornl', g, transform, shape, resampling=resampling, src_nodata=255))
 
 
-def tcc_massey(transform, shape, year=2010, resampling=Resampling.nearest):
+def tcc_massey(transform, shape, year, resampling=Resampling.nearest):
     """Massey et al. 2023 TCC, boreal North America (ORNL DAAC 2296): one COG per nominal year,
     EPSG:4326, percent; water and no-data are 0 (no nodata value)."""
     g = cmr_granules('DeciduousFractionl_CanopyCover_2296', _box(transform, shape), year,
@@ -201,7 +206,7 @@ def tcc_massey(transform, shape, year=2010, resampling=Resampling.nearest):
     return _clean(_read_daac('ornl', g, transform, shape, resampling=resampling))
 
 
-def tcc_gfcc(transform, shape, year=2010, resampling=Resampling.nearest):
+def tcc_gfcc(transform, shape, year, resampling=Resampling.nearest):
     """GFCC30TC v003 (LP DAAC): one zip per WRS-2 path/row with pPPPrRRR_TC_YYYY.tif (UTM).
     0-100 tree cover, 200 water (-> 0), 210 cloud, 211 shadow, 220 fill (-> NaN); the files' nodata is 255.
     Overlapping scenes: the first valid value is kept, so later scenes fill clouds."""
@@ -246,7 +251,7 @@ def meta_quadkeys(box, zoom):
     return [_quadkey(x, y, zoom) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
 
 
-def tcc_meta_chm(transform, shape, version='v2', ht_min=2, block=4096, factor=8, threads=8):
+def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, threads=8):
     """Percent of canopy height map pixels >= ht_min (m) in each grid cell (Meta/WRI, ~1.2 m in
     EPSG:3857, ~0.4-0.5 m on the ground at 65-72 N).
     Each tile is read block by block and reduced in numpy to `factor` x `factor` counts of tall and
@@ -315,3 +320,165 @@ def tcc_meta_chm(transform, shape, version='v2', ht_min=2, block=4096, factor=8,
                     acc += tmp
     with np.errstate(invalid='ignore', divide='ignore'):
         return np.where(valid > 0.5, 100.0 * tall / valid, np.nan).astype(np.float32)
+
+
+# ---------------------------------------------------------------------------
+# Hansen et al. (2013) Global Forest Change
+# ---------------------------------------------------------------------------
+HANSEN_URL = ('https://storage.googleapis.com/earthenginepartners-hansen/'
+              '{ver}/Hansen_{ver}_{layer}_{lat}_{lon}.tif')
+
+
+def hansen_urls(keys, layer, version):
+    return [HANSEN_URL.format(ver=version, layer=layer, lat=tm._fmt_lat(t, 2), lon=tm._fmt_lon(l, 3))
+            for t, l in keys]
+
+
+def tcc_hansen(transform, shape, year, version, emulate_gee=True):
+    """treecover2000 of GFC release `version` (e.g. GFC-2018-v1.6, GFC-2025-v1.13), with loss from 2001
+    to year-1 set to 0 (as GEE's tcc_han_2010). emulate_gee: read 2x2 pyramids north of 64.07 N as GEE did."""
+    keys = tm.tiles_10deg(*tm.grid_lonlat_extent(transform, shape))
+    if emulate_gee:
+        tc = tm.read_tiles_gee(hansen_urls(keys, 'treecover2000', version), transform, shape, 'mean_round')
+        ly = tm.read_tiles_gee(hansen_urls(keys, 'lossyear', version), transform, shape, 'sample')
+    else:
+        tc = tm.read_to_grid(hansen_urls(keys, 'treecover2000', version), transform, shape)
+        ly = tm.read_to_grid(hansen_urls(keys, 'lossyear', version), transform, shape)
+    loss = (ly > 0) & (ly < (year - 2000))
+    # GEE: tcc2000.not().updateMask(loss).unmask(tcc2000) -> loss pixels become (tcc2000 == 0)
+    tc[loss] = (tc[loss] == 0).astype(np.float32)
+    return tc
+
+
+# ---------------------------------------------------------------------------
+# Registry: the tree cover sources the TTE workflow (tte_map.py, DPS run_tte_map) takes by name
+# ---------------------------------------------------------------------------
+def parse_options(options):
+    """'key=value;key=value' (or a dict) -> dict of strings. '', 'none' or None -> {}."""
+    if isinstance(options, dict):
+        return {str(k): str(v) for k, v in options.items()}
+    out = {}
+    for part in str(options or '').split(';'):
+        part = part.strip()
+        if not part or part.lower() == 'none':
+            continue
+        if '=' not in part:
+            raise ValueError(f"tcc option '{part}' is not key=value")
+        k, v = part.split('=', 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
+def _num(v):
+    f = float(v)
+    return int(f) if f.is_integer() else f
+
+
+SOURCES = {
+    'hansen': dict(
+        doc='Hansen et al. (2013) Global Forest Change: treecover2000 with loss from 2001 to tcc_year-1 set to 0',
+        options={'version': 'GFC release on storage.googleapis.com, required (GFC-2018-v1.6 = the version '
+                            'the GEE map used; GFC-2025-v1.13 = latest as of 2026)'},
+        required=['version'],
+        read=lambda tr, sh, year, o, paths, emulate: tcc_hansen(tr, sh, year, o['version'], emulate),
+        label=lambda year, o: f'hansen{year}',
+        describe=lambda year, o: (f"Hansen et al. (2013) Global Forest Change {o['version']}: treecover2000 "
+                                  f"with loss from 2001 to {year - 1} set to 0")),
+    'meta_chm': dict(
+        doc='Meta/WRI canopy height map: percent of ~1 m pixels >= ht_min m in each 30 m cell',
+        options={'version': "canopy height map version, 'v2' (DINOv3, 2025) or 'v1' (Tolan et al. 2024); required",
+                 'ht_min': 'canopy height (m) counted as tree cover; required'},
+        required=['version', 'ht_min'],
+        read=lambda tr, sh, year, o, paths, emulate: tcc_meta_chm(tr, sh, o['version'], float(o['ht_min'])),
+        label=lambda year, o: f"metachm{o['version']}_{_num(o['ht_min'])}m",
+        describe=lambda year, o: (f"Meta/WRI canopy height map {o['version']}: percent of ~1 m pixels >= "
+                                  f"{_num(o['ht_min'])} m in each 30 m cell (imagery dates vary by place; "
+                                  f"tcc_year {year} is nominal)")),
+    'path': dict(
+        doc='percent tree cover rasters or VRTs given in tcc_paths (any CRS); label them with out_name',
+        options={'scale': 'factor to get percent cover 0-100 (default 1)',
+                 'resampling': 'rasterio resampling to the 30 m grid (default nearest, as GEE)',
+                 'band': 'band to read (default 1)'},
+        required=[],
+        read=lambda tr, sh, year, o, paths, emulate: tm.tcc_from_path(
+            paths, tr, sh, band=int(o.get('band', 1)), scale=float(o.get('scale', 1)),
+            resampling=Resampling[o.get('resampling', 'nearest')]),
+        label=lambda year, o: None,          # out_name is required for 'path'
+        describe=lambda year, o: 'tree canopy cover rasters in tte:tcc_paths'),
+    'above_boreal': dict(
+        doc='Feng et al. (2022) ABoVE boreal tree canopy cover from Landsat, yearly 1984-2020, 47-73 N (ORNL DAAC 2012); Earthdata',
+        options={}, required=[],
+        read=lambda tr, sh, year, o, paths, emulate: tcc_above_boreal(tr, sh, year),
+        label=lambda year, o: f'above{year}',
+        describe=lambda year, o: f'Feng et al. (2022) ABoVE boreal tree canopy cover {year} (ORNL DAAC, doi:10.3334/ORNLDAAC/2012)'),
+    'gfcc': dict(
+        doc='Sexton et al. (2013) GFCC30TC v003 tree cover, 2000/2005/2010/2015 (LP DAAC); Earthdata',
+        options={}, required=[],
+        read=lambda tr, sh, year, o, paths, emulate: tcc_gfcc(tr, sh, year),
+        label=lambda year, o: f'gfcc{year}',
+        describe=lambda year, o: f'Sexton et al. (2013) GFCC30TC v003 tree cover {year} (LP DAAC)'),
+    'massey': dict(
+        doc='Massey et al. (2023) tree canopy cover, boreal North America, 1992-2015 every 5 years (ORNL DAAC 2296); Earthdata',
+        options={}, required=[],
+        read=lambda tr, sh, year, o, paths, emulate: tcc_massey(tr, sh, year),
+        label=lambda year, o: f'massey{year}',
+        describe=lambda year, o: f'Massey et al. (2023) tree canopy cover {year}, boreal North America (ORNL DAAC 2296)'),
+}
+GENERIC_OPTIONS = {'floor': 'TCC below this (%) set to 0 after reading, for any source (e.g. floor=5)'}
+
+
+def _checked(source, options):
+    if source not in SOURCES:
+        raise ValueError(f"unknown tcc_source '{source}'; choose one of {sorted(SOURCES)}")
+    o = parse_options(options)
+    known = set(SOURCES[source]['options']) | set(GENERIC_OPTIONS)
+    unknown = set(o) - known
+    if unknown:
+        raise ValueError(f"tcc_source '{source}' has no option(s) {sorted(unknown)}; options: {sorted(known)}")
+    missing = [k for k in SOURCES[source]['required'] if k not in o]
+    if missing:
+        raise ValueError(f"tcc_source '{source}' needs option(s) {missing} in tcc_options, e.g. "
+                         + ';'.join(f'{k}=...' for k in missing))
+    return o
+
+
+def read_tcc(source, transform, shape, year, options=None, paths=None, emulate_gee=True):
+    """Tree cover (%) of a registered source on the grid; applies the generic `floor` option."""
+    o = _checked(source, options)
+    tcc = SOURCES[source]['read'](transform, shape, int(year), o, list(paths or []), emulate_gee)
+    if 'floor' in o:
+        tcc = zero_floor(tcc, float(o['floor']))
+    return tcc
+
+
+def tcc_label(source, year, options=None, out_name=None):
+    """Short name of a run, used in output file names and STAC (tte:tcc_label). out_name overrides."""
+    if out_name:
+        return out_name
+    o = _checked(source, options)
+    lab = SOURCES[source]['label'](int(year), o)
+    if lab is None:
+        raise ValueError(f"tcc_source '{source}' needs out_name (a label for the outputs)")
+    if 'floor' in o:
+        lab += f"_floor{_num(o['floor'])}"
+    return lab
+
+
+def tcc_description(source, year, options=None):
+    o = _checked(source, options)
+    d = SOURCES[source]['describe'](int(year), o)
+    if 'floor' in o:
+        d += f"; TCC below {_num(o['floor'])} % set to 0"
+    return d
+
+
+def list_sources():
+    """Printable summary of the sources and their options."""
+    lines = []
+    for name, s in SOURCES.items():
+        lines.append(f"{name}: {s['doc']}")
+        for k, v in s['options'].items():
+            lines.append(f"    {k}: {v}")
+    lines.append('any source:')
+    lines += [f'    {k}: {v}' for k, v in GENERIC_OPTIONS.items()]
+    return '\n'.join(lines)

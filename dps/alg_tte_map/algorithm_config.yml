@@ -1,13 +1,14 @@
 # MAAP DPS (OGC) algorithm configuration for the TTE map.
 # Load it in MAAP Hub's Register Algorithm form (maap_algorithms_jupyter_extension), which
 # builds the container (build_command on base_container_url) and the CWL process from it.
-# Inputs reach run.sh by name: --tile_num 4209 --tcc_source hansen ...
+# Inputs reach run.sh by name: --tile_num 4209 --tcc_source <source> --tcc_year <year> ...
 algorithm_name: run_tte_map
 algorithm_version: tte_map_v1            # git tag in code_repository
 algorithm_description: >-
   Taiga-tundra ecotone (TTE) forest structure pattern map (Montesano et al. 2020, ERL 15:105019)
-  for 1-degree tiles, from any tree canopy cover input (Hansen GFC, Meta/WRI canopy height, or any
-  tree cover rasters). Python port of the Google Earth Engine workflow that made TTE_DATA_v201902v2.
+  for 1-degree tiles, from any tree canopy cover source (tcc_source, tcc_year, tcc_options; the sources
+  are listed in lib/tte_tcc_sources.py). Python port of the Google Earth Engine workflow that made
+  TTE_DATA_v201902v2.
   Output per tile: a 5-band COG (tte_domain, tte_zones, tte_abruptness, tte_classification, tcc) on
   the original north polar LAEA 30 m grid, plus STAC metadata for the MAAP DPS STAC catalog.
 code_repository: https://github.com/pahbs/tte.git
@@ -32,42 +33,30 @@ inputs:
     type: string
   - name: tcc_source
     label: tree cover source
-    doc: "'hansen' (Hansen GFC treecover2000 minus loss before tcc_year), 'meta_chm' (Meta/WRI canopy height v2, % of ~1 m pixels >= 2 m) or 'path' (rasters in tcc_paths)"
+    doc: "tree cover source by name (lib/tte_tcc_sources.py SOURCES): hansen, meta_chm, path, above_boreal, gfcc, massey"
     type: string
-    default: hansen
   - name: tcc_year
     label: tree cover year
-    doc: year of the tree cover (hansen) or its nominal year (meta_chm, path); the STAC item datetime
+    doc: year the tree cover represents (sources with yearly data read that year); the STAC item datetime
     type: string
-    default: '2010'
-  - name: hansen_version
-    label: Hansen GFC version
-    doc: Hansen GFC release on storage.googleapis.com (GFC-2018-v1.6 = the GEE original; GFC-2025-v1.13 = latest)
-    type: string
-    default: GFC-2018-v1.6
-  - name: tcc_paths
-    label: tree cover rasters
-    doc: comma-separated tree cover rasters/VRTs (s3:// or https://) when tcc_source=path, else none
+  - name: tcc_options
+    label: tree cover options
+    doc: "source options 'key=value;key=value' (e.g. hansen: version=GFC-2025-v1.13; meta_chm: version=v2;ht_min=2; path: scale=100;resampling=average; any source: floor=5), or none"
     type: string
     default: none
-  - name: tcc_scale
-    label: tree cover scale
-    doc: factor to convert tcc_paths values to percent cover 0-100
+  - name: tcc_paths
+    label: tree cover rasters
+    doc: comma-separated tree cover rasters/VRTs (s3:// or https://) for tcc_source 'path', or none
     type: string
-    default: '1'
-  - name: tcc_resampling
-    label: tree cover resampling
-    doc: resampling of tcc_paths to the 30 m grid (nearest, average, ...; GEE used nearest)
-    type: string
-    default: nearest
+    default: none
   - name: out_name
     label: output label
-    doc: label for output file names and tte:tcc_label when tcc_source=path, else none
+    doc: label for output file names and tte:tcc_label (required for tcc_source 'path'), or none for the source's own label
     type: string
     default: none
   - name: gee_emulation
     label: GEE pyramid emulation
-    doc: "true: read Hansen/GSW the way GEE did (2x2 pyramid north of 64.07 N); false: full resolution"
+    doc: "true: read GSW water (and sources that support it) the way GEE did (2x2 pyramid north of 64.07 N); false: full resolution"
     type: string
     default: 'true'
   - name: domain_path

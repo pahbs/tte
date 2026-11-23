@@ -30,9 +30,11 @@ For each 1-degree tile (`tte_tiles.gpkg`, same tiles as the GEE download):
 2. **Domain.** Keep the TTE domain: where mean temperature of the warmest quarter is 7-14 °C
    (WorldClim bio_10), inside the WWF taiga and tundra ecoregions (biome 10 excluded), on land
    (Feng et al. water mask). This is a fixed layer, read from the `tte_domain` band of the GEE tiles.
-3. **Tree cover.** Read TCC (percent) into the grid.
-   Default: Hansen GFC 2018 v1.6 `treecover2000`, set to 0 where `lossyear` is 2001-2009
-   ("Hansen 2010", what GEE used in Eurasia).
+3. **Tree cover.** Read TCC (percent) into the grid from any source registered in
+   `lib/tte_tcc_sources.py` (`--tcc_source`, `--tcc_year`, `--tcc_options`; list them with
+   `python lib/tte_map.py --list_sources`). The GEE map used Hansen GFC 2018 v1.6 `treecover2000`
+   set to 0 where `lossyear` is 2001-2009 ("Hansen 2010") in Eurasia, and calibrated 2 m TCC
+   (`cal_2m_tcc`) in North America.
 4. **Water.** Where JRC Global Surface Water occurrence >= 1, set TCC to 0 (inside or outside
    the domain). Forest next to water then gets an abrupt edge.
 5. **Rate of change.** Slope of TCC in degrees from the 4 neighbours (as `ee.Terrain.slope`),
@@ -72,12 +74,20 @@ differs because GEE used `cal_2m_tcc` there.
 ## Run examples
 
 ```bash
-# one tile, Hansen 2010, on MAAP Hub (kernel or terminal)
-python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte
+# the tree cover sources and their options
+python lib/tte_map.py --list_sources
 
-# another tree cover source (percent cover rasters, any CRS)
-python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte --tcc_source path \
-    --tcc_paths s3://bucket/my_tcc_2020.vrt --tcc_resampling average --out_name mytcc2020
+# one tile with the tree cover the GEE map used in Eurasia (Hansen 2010, GFC 2018 v1.6)
+python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte --tcc_source hansen --tcc_year 2010 \
+    --tcc_options "version=GFC-2018-v1.6"
+
+# Meta/WRI canopy height v2: percent of ~1 m pixels >= 2 m, nominal year 2020
+python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte --tcc_source meta_chm --tcc_year 2020 \
+    --tcc_options "version=v2;ht_min=2"
+
+# your own percent cover rasters (any CRS), with TCC below 5 % set to 0
+python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte --tcc_source path --tcc_year 2020 \
+    --tcc_paths s3://bucket/my_tcc_2020.vrt --tcc_options "resampling=average;floor=5" --out_name mytcc2020
 ```
 
 ## Scaling with MAAP DPS for any TCC input

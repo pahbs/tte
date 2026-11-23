@@ -10,7 +10,8 @@ users/paulmontesano; copies in gee/ of github.com/pahbs/tte), described in
     the boreal forest: the circumpolar taiga-tundra ecotone. ERL 15:105019.
     https://doi.org/10.1088/1748-9326/abb2c7
 
-and lets any tree canopy cover (TCC) raster be used as input.
+and lets any tree canopy cover (TCC) source be used as input: the sources are
+registered by name in tte_tcc_sources.py (`--tcc_source`, `--tcc_year`, `--tcc_options`).
 
 Steps, per 1-degree tile of tte_tiles.gpkg:
   1. Work on the original grid: north polar Lambert azimuthal equal area, 30 m,
@@ -71,17 +72,12 @@ CLASS_COLORS = ['#5255a3', '#1796a3', '#fdbf6f', '#ff7f00',
                 '#c4c4c4', '#ff0000', '#0000ff']
 BAND_NAMES = ['tte_domain', 'tte_zones', 'tte_abruptness', 'tte_classification', 'tcc']
 
-# Public inputs (same versions as the GEE assets used in v201902v2)
-HANSEN_URL = ('https://storage.googleapis.com/earthenginepartners-hansen/'
-              '{ver}/Hansen_{ver}_{layer}_{lat}_{lon}.tif')
-HANSEN_VERSION = 'GFC-2018-v1.6'          # UMD/hansen/global_forest_change_2018_v1_6
+# Water: JRC Global Surface Water (the version the GEE map used is 1.0). Tree cover: tte_tcc_sources.py
 GSW_URL = {
     '1.0': 'https://storage.googleapis.com/global-surface-water/downloads/occurrence/occurrence_{lon}_{lat}.tif',
     '1.4': 'https://storage.googleapis.com/global-surface-water/downloads2021/occurrence/occurrence_{lon}_{lat}v1_4_2021.tif',
 }
 GSW_VERSION = '1.0'                       # JRC/GSW1_0/GlobalSurfaceWater
-META_CHM_VERSION = 'v2'                   # Meta/WRI canopy height map version for tcc_source='meta_chm'
-META_HT_MIN = 2                           # m: canopy height counted as tree cover for tcc_source='meta_chm'
 
 TILES_GPKG = 's3://maap-ops-workspace/shared/montesano/databank/tte_tiles.gpkg'
 DOMAIN_VRT = 's3://maap-ops-workspace/shared/montesano/tte/static/tte_domain_v201902v2.vrt'
@@ -151,10 +147,6 @@ def _fmt_lat(top, pad):
 
 def _fmt_lon(left, pad):
     return f"{abs(left):0{pad}d}{'E' if left >= 0 else 'W'}"
-
-
-def hansen_urls(keys, layer, version=HANSEN_VERSION):
-    return [HANSEN_URL.format(ver=version, layer=layer, lat=_fmt_lat(t, 2), lon=_fmt_lon(l, 3)) for t, l in keys]
 
 
 def gsw_urls(keys, version=GSW_VERSION):
@@ -320,21 +312,6 @@ def read_tiles_gee(urls, transform, shape, how, src_nodata=None, l1_lat=GEE_L1_L
 # ---------------------------------------------------------------------------
 # Inputs
 # ---------------------------------------------------------------------------
-def tcc_hansen(transform, shape, year=2010, version=HANSEN_VERSION, emulate_gee=True):
-    """Hansen treecover2000 with loss before `year` set to 0 (GEE: tcc_han_2010)."""
-    keys = tiles_10deg(*grid_lonlat_extent(transform, shape))
-    if emulate_gee:
-        tc = read_tiles_gee(hansen_urls(keys, 'treecover2000', version), transform, shape, 'mean_round')
-        ly = read_tiles_gee(hansen_urls(keys, 'lossyear', version), transform, shape, 'sample')
-    else:
-        tc = read_to_grid(hansen_urls(keys, 'treecover2000', version), transform, shape)
-        ly = read_to_grid(hansen_urls(keys, 'lossyear', version), transform, shape)
-    loss = (ly > 0) & (ly < (year - 2000))
-    # GEE: tcc2000.not().updateMask(loss).unmask(tcc2000) -> loss pixels become (tcc2000 == 0)
-    tc[loss] = (tc[loss] == 0).astype(np.float32)
-    return tc
-
-
 def tcc_from_path(paths, transform, shape, band=1, scale=1.0, valid_min=0, valid_max=100,
                   resampling=Resampling.nearest):
     tc = read_to_grid(paths, transform, shape, band=band, resampling=resampling) * scale
@@ -496,12 +473,15 @@ def write_cog(bands, transform, out_fn, crs=LAEA_CRS, tags=None):
     return out_fn
 
 
-def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_version=HANSEN_VERSION,
-             tcc_paths=None, tcc_band=1, tcc_scale=1.0, tcc_resampling='nearest',
+def run_tile(tile_num, outdir, tcc_source, tcc_year, tcc_options=None, tcc_paths=None,
              gsw_version=GSW_VERSION, domain_path=DOMAIN_VRT, tiles_gpkg=TILES_GPKG,
              out_name=None, buffer_px=5, emulate_gee=True, stac_entries=None):
     """Run one 1-degree tile; returns the COG path (None outside the TTE domain).
-    stac_entries: a list to append this tile's STAC metadata to (see tte_stac.write_catalog)."""
+    tcc_source, tcc_year, tcc_options, tcc_paths: the tree cover (tte_tcc_sources.SOURCES; options
+    'key=value;key=value'). emulate_gee: read GSW water (and sources that support it) the way GEE
+    did. stac_entries: a list to append this tile's STAC metadata to (see tte_stac.write_catalog)."""
+    import tte_tcc_sources as ts
+    label = ts.tcc_label(tcc_source, tcc_year, tcc_options, out_name)     # checks source and options first
     t0 = time.time()
     geom = load_tile(tile_num, tiles_gpkg)
     transform, shape = laea_grid_for_bounds(geom.bounds, buffer_px)
@@ -513,15 +493,8 @@ def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_versio
         if domain.sum() == 0:
             print('  tile is outside the TTE domain; nothing written')
             return None
-        if tcc_source == 'hansen':
-            tcc = tcc_hansen(transform, shape, year=tcc_year, version=hansen_version, emulate_gee=emulate_gee)
-        elif tcc_source == 'meta_chm':                       # latest Meta/WRI canopy height (CHM v2, public on AWS)
-            from tte_tcc_sources import tcc_meta_chm
-            tcc = tcc_meta_chm(transform, shape, version=META_CHM_VERSION, ht_min=META_HT_MIN)   # % of ~1 m pixels >= ht_min
-        else:
-            tcc = tcc_from_path(tcc_paths, transform, shape, band=tcc_band, scale=tcc_scale,
-                                resampling=Resampling[tcc_resampling])
-        print(f'  tcc read  ({time.time() - t0:.0f}s)')
+        tcc = ts.read_tcc(tcc_source, transform, shape, tcc_year, tcc_options, tcc_paths, emulate_gee)
+        print(f'  tcc read: {tcc_source} {tcc_year} {tcc_options or ""}  ({time.time() - t0:.0f}s)')
         occ = water_gsw(transform, shape, gsw_version, emulate_gee=emulate_gee)
         print(f'  water read  ({time.time() - t0:.0f}s)')
 
@@ -532,10 +505,11 @@ def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_versio
         out[k][~inside] = np.nan
 
     os.makedirs(outdir, exist_ok=True)
-    src_tag = {'hansen': f'hansen{tcc_year}', 'meta_chm': 'metachm2m'}.get(tcc_source, out_name or 'custom')
-    out_fn = os.path.join(outdir, f'tte_{src_tag}_{int(tile_num):07}.tif')
-    tags = dict(tcc_source=tcc_source, tcc_year=str(tcc_year),
-                tcc_paths=','.join(tcc_paths or []) if tcc_source != 'hansen' else hansen_version,
+    out_fn = os.path.join(outdir, f'tte_{label}_{int(tile_num):07}.tif')
+    tags = dict(tcc_source=tcc_source, tcc_label=label, tcc_year=str(tcc_year),
+                tcc_options=';'.join(f'{k}={v}' for k, v in ts.parse_options(tcc_options).items()),
+                tcc_paths=','.join(tcc_paths or []),
+                tcc_description=ts.tcc_description(tcc_source, tcc_year, tcc_options),
                 water=f'GSW v{gsw_version} occurrence >= {WATER_OCC_MIN}', domain=domain_path,
                 gee_pyramid_emulation=str(emulate_gee),
                 method='Montesano et al. 2020 ERL 15:105019; port of GEE TTE_DATA_v201902v2',
@@ -545,10 +519,8 @@ def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_versio
     print(f'  wrote {out_fn}: {n} classified pixels ({time.time() - t0:.0f}s)')
     if stac_entries is not None:
         import tte_stac
-        meta = tcc_source == 'meta_chm'
-        run_props = tte_stac.run_properties(
-            tile_num, tcc_source, src_tag, tcc_year, hansen_version, tcc_paths, tcc_scale, tcc_resampling,
-            gsw_version, domain_path, emulate_gee, META_CHM_VERSION if meta else None, META_HT_MIN if meta else None)
+        run_props = tte_stac.run_properties(tile_num, tcc_source, label, tcc_year, tcc_options, tcc_paths,
+                                            gsw_version, domain_path, emulate_gee)
         stac_entries.append(dict(cog=out_fn, geom=geom, run_props=run_props,
                                  summary=tte_stac.tile_summary(out, tcc, domain, inside)))
     return out_fn
@@ -558,34 +530,42 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--tile_num', required=True, help='tile_num(s) in the tiles gpkg, comma separated')
     p.add_argument('--outdir', required=True)
-    p.add_argument('--tcc_source', default='hansen', choices=['hansen', 'path', 'meta_chm'],
-                   help="'hansen' = Hansen GFC treecover2000 minus loss before --tcc_year; 'path' = --tcc_paths; "
-                        "'meta_chm' = Meta/WRI canopy height v2, percent of ~1 m pixels >= 2 m")
-    p.add_argument('--tcc_year', type=int, default=2010)
-    p.add_argument('--hansen_version', default=HANSEN_VERSION, help='e.g. GFC-2018-v1.6 (GEE original), GFC-2024-v1.12')
-    p.add_argument('--tcc_paths', default='', help='comma-separated rasters/VRTs/COG urls (s3://, https://, local)')
-    p.add_argument('--tcc_band', type=int, default=1)
-    p.add_argument('--tcc_scale', type=float, default=1.0, help='multiply input to get percent cover 0-100')
-    p.add_argument('--tcc_resampling', default='nearest', help='rasterio Resampling name; GEE used nearest')
-    p.add_argument('--out_name', default=None, help='label for output file names when --tcc_source path')
+    import tte_tcc_sources as ts
+    p.add_argument('--tcc_source', required=True, choices=sorted(ts.SOURCES),
+                   help='tree cover source (tte_tcc_sources.SOURCES); see --list_sources')
+    p.add_argument('--tcc_year', type=int, required=True,
+                   help='year the tree cover represents (sources with yearly data read that year)')
+    p.add_argument('--tcc_options', default='',
+                   help="source options 'key=value;key=value', e.g. 'version=GFC-2025-v1.13' (hansen), "
+                        "'version=v2;ht_min=2' (meta_chm), 'scale=100;resampling=average' (path); "
+                        "'floor=5' (any source): TCC below 5 %% set to 0")
+    p.add_argument('--tcc_paths', default='', help="comma-separated rasters/VRTs/COG urls for tcc_source 'path'")
+    p.add_argument('--out_name', default=None, help="label for output file names (required for tcc_source 'path')")
     p.add_argument('--gsw_version', default=GSW_VERSION, choices=list(GSW_URL))
     p.add_argument('--domain_path', default=DOMAIN_VRT)
     p.add_argument('--tiles_gpkg', default=TILES_GPKG)
     p.add_argument('--write_stac', action='store_true',
                    help='write catalog.json + STAC items for the output COGs in --outdir (for the MAAP DPS STAC)')
     p.add_argument('--no_gee_emulation', action='store_true',
-                   help='read Hansen/GSW at full resolution everywhere (GEE used 2x2 pyramids north of 64.07N)')
+                   help='read GSW water (and sources that support it) at full resolution everywhere '
+                        '(GEE read 2x2 pyramids north of 64.07N)')
+    if '--list_sources' in sys.argv:
+        sys.exit(print(ts.list_sources()))
     a = p.parse_args()
 
     tcc_paths = [s for s in a.tcc_paths.split(',') if s]
     if a.tcc_source == 'path' and not tcc_paths:
-        sys.exit('--tcc_paths is required with --tcc_source path')
+        sys.exit("--tcc_paths is required with --tcc_source path")
+    try:
+        ts.tcc_label(a.tcc_source, a.tcc_year, a.tcc_options, a.out_name)     # check source and options early
+    except ValueError as e:
+        sys.exit(str(e))
 
     entries = [] if a.write_stac else None
     for tn in [s for s in str(a.tile_num).split(',') if s]:
-        run_tile(int(tn), a.outdir, a.tcc_source, a.tcc_year, a.hansen_version, tcc_paths,
-                 a.tcc_band, a.tcc_scale, a.tcc_resampling, a.gsw_version, a.domain_path,
-                 a.tiles_gpkg, a.out_name, emulate_gee=not a.no_gee_emulation, stac_entries=entries)
+        run_tile(int(tn), a.outdir, a.tcc_source, a.tcc_year, a.tcc_options, tcc_paths,
+                 gsw_version=a.gsw_version, domain_path=a.domain_path, tiles_gpkg=a.tiles_gpkg,
+                 out_name=a.out_name, emulate_gee=not a.no_gee_emulation, stac_entries=entries)
     if entries:
         import tte_stac
         for f in tte_stac.write_catalog(entries, a.outdir):
