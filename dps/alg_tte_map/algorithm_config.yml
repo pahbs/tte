@@ -1,0 +1,91 @@
+# MAAP DPS (OGC) algorithm configuration for the TTE map.
+# Load it in MAAP Hub's Register Algorithm form (maap_algorithms_jupyter_extension), which
+# builds the container (build_command on base_container_url) and the CWL process from it.
+# Inputs reach run.sh by name: --tile_num 4209 --tcc_source hansen ...
+algorithm_name: run_tte_map
+algorithm_version: tte_map_v1            # git tag in code_repository
+algorithm_description: >-
+  Taiga-tundra ecotone (TTE) forest structure pattern map (Montesano et al. 2020, ERL 15:105019)
+  for 1-degree tiles, from any tree canopy cover input (Hansen GFC, Meta/WRI canopy height, or any
+  tree cover rasters). Python port of the Google Earth Engine workflow that made TTE_DATA_v201902v2.
+  Output per tile: a 5-band COG (tte_domain, tte_zones, tte_abruptness, tte_classification, tcc) on
+  the original north polar LAEA 30 m grid, plus STAC metadata for the MAAP DPS STAC catalog.
+code_repository: https://github.com/pahbs/tte.git
+run_command: tte/dps/alg_tte_map/run.sh
+build_command: tte/dps/alg_tte_map/build.sh
+base_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+ram_min: 8                               # GB
+cores_min: 1
+author: Paul Montesano
+license: https://creativecommons.org/licenses/by/4.0/
+citation: >-
+  Montesano, P.M., Neigh, C.S.R., Macander, M., Feng, M., Noojipady, P. (2020). The bioclimatic
+  extent and pattern of the cold edge of the boreal forest: the circumpolar taiga-tundra ecotone.
+  Environmental Research Letters 15, 105019. https://doi.org/10.1088/1748-9326/abb2c7
+keywords: taiga-tundra ecotone, boreal, tree canopy cover, forest structure
+release_notes: https://github.com/pahbs/tte/releases
+
+inputs:
+  - name: tile_num
+    label: tile number(s)
+    doc: tile_num(s) from tte_tiles.gpkg (1-degree tiles of the TTE domain), comma separated
+    type: string
+  - name: tcc_source
+    label: tree cover source
+    doc: "'hansen' (Hansen GFC treecover2000 minus loss before tcc_year), 'meta_chm' (Meta/WRI canopy height v2, % of ~1 m pixels >= 2 m) or 'path' (rasters in tcc_paths)"
+    type: string
+    default: hansen
+  - name: tcc_year
+    label: tree cover year
+    doc: year of the tree cover (hansen) or its nominal year (meta_chm, path); the STAC item datetime
+    type: string
+    default: '2010'
+  - name: hansen_version
+    label: Hansen GFC version
+    doc: Hansen GFC release on storage.googleapis.com (GFC-2018-v1.6 = the GEE original; GFC-2025-v1.13 = latest)
+    type: string
+    default: GFC-2018-v1.6
+  - name: tcc_paths
+    label: tree cover rasters
+    doc: comma-separated tree cover rasters/VRTs (s3:// or https://) when tcc_source=path, else none
+    type: string
+    default: none
+  - name: tcc_scale
+    label: tree cover scale
+    doc: factor to convert tcc_paths values to percent cover 0-100
+    type: string
+    default: '1'
+  - name: tcc_resampling
+    label: tree cover resampling
+    doc: resampling of tcc_paths to the 30 m grid (nearest, average, ...; GEE used nearest)
+    type: string
+    default: nearest
+  - name: out_name
+    label: output label
+    doc: label for output file names and tte:tcc_label when tcc_source=path, else none
+    type: string
+    default: none
+  - name: gee_emulation
+    label: GEE pyramid emulation
+    doc: "true: read Hansen/GSW the way GEE did (2x2 pyramid north of 64.07 N); false: full resolution"
+    type: string
+    default: 'true'
+  - name: domain_path
+    label: TTE domain
+    doc: static TTE domain raster/VRT (bioclimatic envelope x ecoregions x land), 1 = in domain
+    type: string
+    default: s3://maap-ops-workspace/shared/montesano/tte/static/tte_domain_v201902v2.vrt
+  - name: tiles_gpkg
+    label: tile index
+    doc: 1-degree tile index (tile_num)
+    type: string
+    default: s3://maap-ops-workspace/shared/montesano/databank/tte_tiles.gpkg
+  - name: write_stac
+    label: write STAC
+    doc: "true: write catalog.json + STAC items so results are published in the MAAP DPS STAC catalog"
+    type: string
+    default: 'true'
+
+outputs:
+  - name: out
+    type: Directory

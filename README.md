@@ -15,7 +15,7 @@ tree canopy cover (TCC) input.
 | Component | Location |
 |---|---|
 | Core code + command line | `lib/tte_map.py` |
-| DPS algorithm `run_tte_map` | `dps/alg_tte_map/` (run.sh, build.sh, env.yml, run_tte_map.yml) |
+| DPS algorithm `run_tte_map` | `dps/alg_tte_map/` (run.sh, build.sh, env.yml, algorithm_config.yml) |
 | DPS register / submit notebook | `dps/DPS_tte_map.ipynb` |
 | Comparison with the GEE tiles | `validation/validate_tte_vs_gee.py` |
 | Original GEE scripts | `gee/` |
