@@ -12,6 +12,7 @@
 #  9 gee_emulation     true | false  (read Hansen/GSW like GEE did: 2x2 pyramids north of 64.07N)
 # 10 domain_path       static TTE domain raster/VRT
 # 11 tiles_gpkg        1-degree tile index with tile_num
+# 12 write_stac        true | false  (write catalog.json + STAC items for the DPS STAC catalog)
 set -x
 source activate python
 unset PROJ_LIB
@@ -27,5 +28,6 @@ ARGS+=" --tcc_paths=$(nz ${5}) --tcc_scale ${6} --tcc_resampling ${7}"
 [ -n "$(nz ${8})" ] && ARGS+=" --out_name ${8}"
 [ "${9}" == "false" ] && ARGS+=" --no_gee_emulation"
 ARGS+=" --domain_path ${10} --tiles_gpkg ${11} --outdir ${OUTPUTDIR}"
+[ "${12:-true}" == "true" ] && ARGS+=" --write_stac"
 
 python ${basedir}/../../lib/tte_map.py ${ARGS}

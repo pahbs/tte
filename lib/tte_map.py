@@ -80,6 +80,8 @@ GSW_URL = {
     '1.4': 'https://storage.googleapis.com/global-surface-water/downloads2021/occurrence/occurrence_{lon}_{lat}v1_4_2021.tif',
 }
 GSW_VERSION = '1.0'                       # JRC/GSW1_0/GlobalSurfaceWater
+META_CHM_VERSION = 'v2'                   # Meta/WRI canopy height map version for tcc_source='meta_chm'
+META_HT_MIN = 2                           # m: canopy height counted as tree cover for tcc_source='meta_chm'
 
 TILES_GPKG = 's3://maap-ops-workspace/shared/montesano/databank/tte_tiles.gpkg'
 DOMAIN_VRT = 's3://maap-ops-workspace/shared/montesano/tte/static/tte_domain_v201902v2.vrt'
@@ -497,7 +499,9 @@ def write_cog(bands, transform, out_fn, crs=LAEA_CRS, tags=None):
 def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_version=HANSEN_VERSION,
              tcc_paths=None, tcc_band=1, tcc_scale=1.0, tcc_resampling='nearest',
              gsw_version=GSW_VERSION, domain_path=DOMAIN_VRT, tiles_gpkg=TILES_GPKG,
-             out_name=None, buffer_px=5, emulate_gee=True):
+             out_name=None, buffer_px=5, emulate_gee=True, stac_entries=None):
+    """Run one 1-degree tile; returns the COG path (None outside the TTE domain).
+    stac_entries: a list to append this tile's STAC metadata to (see tte_stac.write_catalog)."""
     t0 = time.time()
     geom = load_tile(tile_num, tiles_gpkg)
     transform, shape = laea_grid_for_bounds(geom.bounds, buffer_px)
@@ -511,6 +515,9 @@ def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_versio
             return None
         if tcc_source == 'hansen':
             tcc = tcc_hansen(transform, shape, year=tcc_year, version=hansen_version, emulate_gee=emulate_gee)
+        elif tcc_source == 'meta_chm':                       # latest Meta/WRI canopy height (CHM v2, public on AWS)
+            from tte_tcc_sources import tcc_meta_chm
+            tcc = tcc_meta_chm(transform, shape, version=META_CHM_VERSION, ht_min=META_HT_MIN)   # % of ~1 m pixels >= ht_min
         else:
             tcc = tcc_from_path(tcc_paths, transform, shape, band=tcc_band, scale=tcc_scale,
                                 resampling=Resampling[tcc_resampling])
@@ -525,7 +532,7 @@ def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_versio
         out[k][~inside] = np.nan
 
     os.makedirs(outdir, exist_ok=True)
-    src_tag = f'hansen{tcc_year}' if tcc_source == 'hansen' else (out_name or 'custom')
+    src_tag = {'hansen': f'hansen{tcc_year}', 'meta_chm': 'metachm2m'}.get(tcc_source, out_name or 'custom')
     out_fn = os.path.join(outdir, f'tte_{src_tag}_{int(tile_num):07}.tif')
     tags = dict(tcc_source=tcc_source, tcc_year=str(tcc_year),
                 tcc_paths=','.join(tcc_paths or []) if tcc_source != 'hansen' else hansen_version,
@@ -536,6 +543,14 @@ def run_tile(tile_num, outdir, tcc_source='hansen', tcc_year=2010, hansen_versio
     write_cog(out, transform, out_fn, tags=tags)
     n = np.isfinite(out['tte_classification']).sum()
     print(f'  wrote {out_fn}: {n} classified pixels ({time.time() - t0:.0f}s)')
+    if stac_entries is not None:
+        import tte_stac
+        meta = tcc_source == 'meta_chm'
+        run_props = tte_stac.run_properties(
+            tile_num, tcc_source, src_tag, tcc_year, hansen_version, tcc_paths, tcc_scale, tcc_resampling,
+            gsw_version, domain_path, emulate_gee, META_CHM_VERSION if meta else None, META_HT_MIN if meta else None)
+        stac_entries.append(dict(cog=out_fn, geom=geom, run_props=run_props,
+                                 summary=tte_stac.tile_summary(out, tcc, domain, inside)))
     return out_fn
 
 
@@ -543,8 +558,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--tile_num', required=True, help='tile_num(s) in the tiles gpkg, comma separated')
     p.add_argument('--outdir', required=True)
-    p.add_argument('--tcc_source', default='hansen', choices=['hansen', 'path'],
-                   help="'hansen' = Hansen GFC treecover2000 minus loss before --tcc_year; 'path' = --tcc_paths")
+    p.add_argument('--tcc_source', default='hansen', choices=['hansen', 'path', 'meta_chm'],
+                   help="'hansen' = Hansen GFC treecover2000 minus loss before --tcc_year; 'path' = --tcc_paths; "
+                        "'meta_chm' = Meta/WRI canopy height v2, percent of ~1 m pixels >= 2 m")
     p.add_argument('--tcc_year', type=int, default=2010)
     p.add_argument('--hansen_version', default=HANSEN_VERSION, help='e.g. GFC-2018-v1.6 (GEE original), GFC-2024-v1.12')
     p.add_argument('--tcc_paths', default='', help='comma-separated rasters/VRTs/COG urls (s3://, https://, local)')
@@ -555,6 +571,8 @@ def main():
     p.add_argument('--gsw_version', default=GSW_VERSION, choices=list(GSW_URL))
     p.add_argument('--domain_path', default=DOMAIN_VRT)
     p.add_argument('--tiles_gpkg', default=TILES_GPKG)
+    p.add_argument('--write_stac', action='store_true',
+                   help='write catalog.json + STAC items for the output COGs in --outdir (for the MAAP DPS STAC)')
     p.add_argument('--no_gee_emulation', action='store_true',
                    help='read Hansen/GSW at full resolution everywhere (GEE used 2x2 pyramids north of 64.07N)')
     a = p.parse_args()
@@ -563,10 +581,16 @@ def main():
     if a.tcc_source == 'path' and not tcc_paths:
         sys.exit('--tcc_paths is required with --tcc_source path')
 
+    entries = [] if a.write_stac else None
     for tn in [s for s in str(a.tile_num).split(',') if s]:
         run_tile(int(tn), a.outdir, a.tcc_source, a.tcc_year, a.hansen_version, tcc_paths,
                  a.tcc_band, a.tcc_scale, a.tcc_resampling, a.gsw_version, a.domain_path,
-                 a.tiles_gpkg, a.out_name, emulate_gee=not a.no_gee_emulation)
+                 a.tiles_gpkg, a.out_name, emulate_gee=not a.no_gee_emulation, stac_entries=entries)
+    if entries:
+        import tte_stac
+        for f in tte_stac.write_catalog(entries, a.outdir):
+            print('  STAC item', f)
+        print('  STAC catalog', os.path.join(a.outdir, 'catalog.json'))
 
 
 if __name__ == '__main__':

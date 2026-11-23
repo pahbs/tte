@@ -21,7 +21,7 @@ inputs:
     required: true
   - name: tcc_source
     default: hansen
-    description: "'hansen' (treecover2000 minus loss before tcc_year) or 'path' (tcc_paths)"
+    description: "'hansen' (treecover2000 minus loss before tcc_year), 'path' (tcc_paths), or 'meta_chm' (Meta/WRI CHM v2, % of ~1 m pixels >= 2 m)"
     required: true
   - name: tcc_year
     default: '2010'
@@ -58,4 +58,8 @@ inputs:
   - name: tiles_gpkg
     default: s3://maap-ops-workspace/shared/montesano/databank/tte_tiles.gpkg
     description: 1-degree tile index (tile_num)
+    required: true
+  - name: write_stac
+    default: 'true'
+    description: write catalog.json + STAC items so results are published in the MAAP DPS STAC catalog
     required: true
