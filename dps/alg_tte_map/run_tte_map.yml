@@ -1,0 +1,61 @@
+algorithm_description: >-
+  Taiga-tundra ecotone (TTE) forest structure pattern map (Montesano et al. 2020, ERL 15:105019)
+  for 1-degree tiles, from any tree canopy cover input. Python port of the GEE workflow that made
+  TTE_DATA_v201902v2. Output: 5-band COG (tte_domain, tte_zones, tte_abruptness, tte_classification, tcc)
+  on the original north-polar LAEA 30 m grid.
+algorithm_name: run_tte_map
+algorithm_version: tte_map_v1
+repository_url: https://github.com/pahbs/tte.git
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+queue: maap-dps-worker-8gb
+build_command: tte/dps/alg_tte_map/build.sh
+run_command: tte/dps/alg_tte_map/run.sh
+disk_space: 10GB
+inputs:
+  config: []
+  file: []
+  positional:
+  - name: tile_num
+    default: ''
+    description: tile_num(s) from tte_tiles.gpkg, comma separated
+    required: true
+  - name: tcc_source
+    default: hansen
+    description: "'hansen' (treecover2000 minus loss before tcc_year) or 'path' (tcc_paths)"
+    required: true
+  - name: tcc_year
+    default: '2010'
+    description: year of tree cover (hansen) / label
+    required: true
+  - name: hansen_version
+    default: GFC-2018-v1.6
+    description: Hansen GFC release on storage.googleapis.com (GFC-2018-v1.6 = GEE original)
+    required: true
+  - name: tcc_paths
+    default: none
+    description: comma-separated tree cover rasters/VRTs (s3:// or https://) when tcc_source=path
+    required: true
+  - name: tcc_scale
+    default: '1'
+    description: factor to convert input to percent cover 0-100
+    required: true
+  - name: tcc_resampling
+    default: nearest
+    description: resampling of tcc_paths to the 30 m grid (GEE used nearest)
+    required: true
+  - name: out_name
+    default: none
+    description: label for output file names when tcc_source=path
+    required: true
+  - name: gee_emulation
+    default: 'true'
+    description: read Hansen/GSW the way GEE did (2x2 pyramid north of 64.07N); false = full resolution
+    required: true
+  - name: domain_path
+    default: s3://maap-ops-workspace/shared/montesano/tte/static/tte_domain_v201902v2.vrt
+    description: static TTE domain (bioclimatic envelope x ecoregions x land), 1 = in domain
+    required: true
+  - name: tiles_gpkg
+    default: s3://maap-ops-workspace/shared/montesano/databank/tte_tiles.gpkg
+    description: 1-degree tile index (tile_num)
+    required: true
