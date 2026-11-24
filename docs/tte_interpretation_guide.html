@@ -27,9 +27,10 @@ h1 { font-size: 30px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -.01em
 h2 { font-size: 15px; margin: 0; font-weight: 600 }
 p { margin: 0; max-width: 72ch }
 .lede { color: var(--ink2); font-size: 16px }
-.scen { display: flex; flex-wrap: wrap; gap: 8px }
+.scen { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 3px; margin: -3px }
+.scen button { font-size: 12.5px; line-height: 1.3; white-space: nowrap; flex: 0 0 auto }
 button { font: inherit; color: inherit }
-.scen button, .seg button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 7px 12px; cursor: pointer }
+.scen button, .seg button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 8px; cursor: pointer }
 .scen button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600 }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
 .bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 362px; gap: 24px; align-items: stretch }
@@ -38,22 +39,22 @@ button { font: inherit; color: inherit }
 @media (max-width: 680px) { .bench { grid-template-columns: minmax(0, 1fr) } }
 .gh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 8px }
 .seg { display: flex; gap: 4px } .seg button { padding: 4px 9px; font-size: 13px }
-.grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); grid-template-rows: repeat(16, minmax(0, 1fr)); flex: 1 1 auto; gap: 1px; background: var(--line); border: 1px solid var(--line); touch-action: manipulation; user-select: none }
+.grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); grid-template-rows: repeat(12, minmax(0, 1fr)); flex: 1 1 auto; gap: 1px; background: var(--line); border: 1px solid var(--line); touch-action: manipulation; user-select: none }
 .grid.paint { touch-action: none }
 .px { position: relative; min-height: 0; border: 0; padding: 0; margin: 0; border-radius: 0; font: 600 11px/1 var(--mono); font-variant-numeric: tabular-nums; cursor: pointer; display: grid; place-items: center; min-width: 0 }
 @media (max-width: 420px) { .px { font-size: 9.5px } }
 .px.sel { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--sel); z-index: 3 }
 .px.nb { box-shadow: inset 0 0 0 2px var(--sel); z-index: 2 }
 .pin { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--sel); color: var(--bg); font: 700 10px/16px var(--sans); text-align: center; z-index: 4; pointer-events: none }
-.key { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 12px; margin-top: 10px; font-size: 12px; color: var(--ink2); height: 68px; overflow: hidden }
+.key { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 12px; margin-top: 10px; font-size: 12px; color: var(--ink2); height: 64px; overflow: hidden }
 .key span { display: inline-flex; align-items: center; gap: 5px } .key i { width: 12px; height: 12px; display: inline-block; border: 1px solid var(--line) }
 .ramp { width: 150px; height: 10px; border: 1px solid var(--line); display: inline-block }
-.insp { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 12px; width: 100% }
-.insp svg { display: block; width: 100%; max-width: 328px; height: auto; aspect-ratio: 290 / 196 }
-.calc { min-height: 131px; font: 13px/1.65 var(--mono); font-variant-numeric: tabular-nums; overflow-x: auto; white-space: pre }
+.insp { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; align-content: space-between; gap: 8px; width: 100% }
+.insp svg { display: block; width: 100%; max-width: 290px; height: auto; aspect-ratio: 290 / 196 }
+.calc { min-height: 90px; font: 12px/1.5 var(--mono); font-variant-numeric: tabular-nums; overflow-x: auto; white-space: pre }
 .calc b { color: var(--accent) }
 .chip { height: 28px; white-space: nowrap; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; font-weight: 600 } .chip i { min-width: 28px; padding: 3px 6px; border-radius: 4px; text-align: center; font: 700 13px/1.2 var(--mono); font-style: normal }
-.edit { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 14px } .edit label { display: flex; align-items: center; gap: 8px } .edit input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent) }
+.edit { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13.5px } .edit .opts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px } .edit .ghost { margin-left: auto; padding: 3px 9px } .edit label { display: flex; align-items: center; gap: 8px } .edit input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent) }
 .edit output { font: 600 13px var(--mono); min-width: 46px; text-align: right }
 .ghost { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 5px 10px; cursor: pointer; justify-self: start }
 .notes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding: 0; margin: 0; list-style: none }
@@ -72,7 +73,7 @@ text { font-family: var(--sans) }
   </header>
   <div class="row"><h2>Conceptual landscape types</h2><div class="scen" id="scen" role="group" aria-label="Conceptual landscape types"></div></div>
   <p id="about"></p>
-  <div class="bench">
+  <div class="row"><h2>Corresponding arrays of map pixels</h2><div class="bench">
     <section aria-label="Tree cover">
       <div class="gh"><h2>Tree cover (%)</h2></div>
       <div class="grid" id="gA"></div>
@@ -84,7 +85,7 @@ text { font-family: var(--sans) }
       <div class="key" id="keyB"></div>
     </section>
     <aside class="insp" aria-live="polite" id="insp"></aside>
-  </div>
+  </div></div>
   <div class="row"><h2>Points to notice</h2><ul class="notes" id="notes"></ul></div>
   <div class="row"><h2 id="trT">Transect</h2><div class="tr" id="tr"></div></div>
   <div class="rules">
@@ -113,7 +114,7 @@ function solve(cov, wat) {
   }); });
 }
 /*END*/
-var H = 16, W = 13, NAMES = ['Masked', 'Sparse & Uniform', 'Sparse & Diffuse-gradual', 'Sparse & Diffuse-rapid', 'Sparse & Abrupt', 'Open & Uniform', 'Open & Diffuse-gradual', 'Open & Diffuse-rapid', 'Open & Abrupt', 'Intermediate & Closed', 'Non-forest edge (dry)', 'Non-forest edge (wet)'];
+var H = 12, W = 13, NAMES = ['Masked', 'Sparse & Uniform', 'Sparse & Diffuse-gradual', 'Sparse & Diffuse-rapid', 'Sparse & Abrupt', 'Open & Uniform', 'Open & Diffuse-gradual', 'Open & Diffuse-rapid', 'Open & Abrupt', 'Intermediate & Closed', 'Non-forest edge (dry)', 'Non-forest edge (wet)'];
 var COL = ['', '#5255a3', '#1796a3', '#fdbf6f', '#ff7f00', '#ffffbf', '#d9ef8b', '#91cf60', '#1a9850', '#c4c4c4', '#e00000', '#1a1aff'], LIGHT = { 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 9: 1 };
 function fill(f) { var a = []; for (var i = 0; i < H; i++) { a.push([]); for (var j = 0; j < W; j++) a[i].push(f(i, j)); } return a; }
 function cols(v) { return fill(function (i, j) { return v[j]; }); }
@@ -128,11 +129,11 @@ var S = [
   { id: 'foot', name: 'Edge with scattered trees', cov: cols([60, 60, 60, 60, 60, 60, 3, 3, 3, 3, 3, 3, 3]), sel: [7, 6], about: 'The same edge, with 3 % cover instead of none on the tundra side. Now the edge pixel is Sparse & Abrupt.',
     notes: [[7, 6, 'A little cover at the foot of a dense stand is what the Abrupt classes need.'], [7, 8, 'Further out, 3 % everywhere: Sparse & Uniform rather than masked.'], [7, 5, 'The forest side is unchanged: class 9.']] },
   { id: 'islands', name: 'Tree islands', sel: [2, 2], about: 'Patches of trees in 1 % cover. The pixel with the trees can be the most uniform one on the map.',
-    cov: fill(function (i, j) { if (i === 2 && j === 2) return 100; if (i === 7 && j === 2) return 20; if (i >= 2 && i <= 3 && j >= 6 && j <= 7) return 20; if (i >= 6 && i <= 8 && j >= 8 && j <= 10) return 40; if ((i === 12 && j === 4) || (i === 13 && j === 5)) return 60; return 1; }),
-    notes: [[2, 2, 'A lone 100 % pixel: left equals right and up equals down, so the rate is 0 and abruptness is −1, the minimum.'], [2, 1, 'Its side neighbours get +0.97. The island shows as a plus sign of Sparse & Abrupt.'], [1, 1, 'A corner neighbour touches the island but has no side neighbour in it: uniform.'], [7, 2, 'A lone 20 % pixel is mapped as Open & Uniform.'], [2, 6, 'A 2 × 2 patch: each pixel has trees on one side only, so its edges are seen.'], [7, 9, 'The middle of a 3 × 3 patch is uniform because its four neighbours match.'], [12, 4, 'Two 60 % pixels touching at a corner: each has four matching 1 % neighbours, so both are uniform.'], [12, 5, 'A 1 % pixel between them has dense cover on two sides at once, to its left and below, so its rate is high.']] },
+    cov: fill(function (i, j) { if (i === 2 && j === 2) return 100; if (i === 7 && j === 2) return 20; if (i >= 2 && i <= 3 && j >= 6 && j <= 7) return 20; if (i >= 6 && i <= 8 && j >= 8 && j <= 10) return 40; if ((i === 9 && j === 4) || (i === 10 && j === 5)) return 60; return 1; }),
+    notes: [[2, 2, 'A lone 100 % pixel: left equals right and up equals down, so the rate is 0 and abruptness is −1, the minimum.'], [2, 1, 'Its side neighbours get +0.97. The island shows as a plus sign of Sparse & Abrupt.'], [1, 1, 'A corner neighbour touches the island but has no side neighbour in it: uniform.'], [7, 2, 'A lone 20 % pixel is mapped as Open & Uniform.'], [2, 6, 'A 2 × 2 patch: each pixel has trees on one side only, so its edges are seen.'], [7, 9, 'The middle of a 3 × 3 patch is uniform because its four neighbours match.'], [9, 4, 'Two 60 % pixels touching at a corner: each has four matching 1 % neighbours, so both are uniform.'], [9, 5, 'A 1 % pixel between them has dense cover on two sides at once, to its left and below, so its rate is high.']] },
   { id: 'gaps', name: 'Gaps in forest', sel: [2, 3], about: 'Openings in 25 % cover. A gap one pixel wide has the same cover on both sides, so it looks uniform.',
-    cov: fill(function (i, j) { if (i === 2 && j === 3) return 4; if (i >= 6 && i <= 7 && j >= 3 && j <= 4) return 4; if (i >= 10 && i <= 12 && j >= 2 && j <= 4) return 4; if (j === 9) return 4; return 25; }),
-    notes: [[2, 3, 'A one-pixel gap: four higher neighbours, yet no tilt. Sparse & Uniform.'], [2, 2, 'The forest beside the gap does register it: the rate rises to nearly its own cover.'], [6, 3, 'A 2 × 2 gap: forest on one side only in each direction, so Sparse & Abrupt.'], [11, 3, 'The middle of a 3 × 3 gap: low cover all around, so Sparse & Uniform.'], [5, 9, 'A one-pixel-wide corridor of low cover is uniform along its whole length.']] },
+    cov: fill(function (i, j) { if (i === 2 && j === 3) return 4; if (i >= 8 && i <= 9 && j >= 2 && j <= 3) return 4; if (i >= 5 && i <= 7 && j >= 6 && j <= 8) return 4; if (j === 11) return 4; return 25; }),
+    notes: [[2, 3, 'A one-pixel gap: four higher neighbours, yet no tilt. Sparse & Uniform.'], [2, 2, 'The forest beside the gap does register it: the rate rises to nearly its own cover.'], [8, 2, 'A 2 × 2 gap: forest on one side only in each direction, so Sparse & Abrupt.'], [6, 7, 'The middle of a 3 × 3 gap: low cover all around, so Sparse & Uniform.'], [5, 11, 'A one-pixel-wide corridor of low cover is uniform along its whole length.']] },
   { id: 'lines', name: 'Thin lines of trees', sel: [7, 2], about: 'Strips of 20 % cover in tundra, 1, 2 and 3 pixels wide, such as trees along a stream. Width decides whether the strip itself is seen as a gradient.',
     cov: fill(function (i, j) { return j === 2 || j === 5 || j === 6 || (j >= 9 && j <= 11) ? 20 : 0; }),
     notes: [[7, 2, 'One pixel wide: both sides are bare and equal, so −1 and Open & Uniform.'], [7, 5, 'Two pixels wide: each pixel has trees on one side, so the rate just exceeds the cover. Open & Diffuse-rapid.'], [7, 10, 'Three wide: the middle is uniform and only the outer pixels see the edge.'], [7, 3, 'Bare ground beside trees: Non-forest edge in every case.']] },
@@ -208,9 +209,9 @@ function inspect() {
   var chip = p.k ? '<i style="background:' + COL[p.k] + ';color:' + (LIGHT[p.k] ? '#14201c' : '#fff') + '">' + p.k + '</i>' : '<i style="background:var(--masked)">–</i>';
   $('insp').innerHTML = '<h2 style="height:23px">Selected tree cover pixel and neighbors</h2><svg viewBox="0 0 290 196" role="img" aria-label="The pixel, its four side neighbours, and its place on the class chart">' +
     box(62, 4, n.U) + box(8, 58, n.L) + box(62, 58, p.t, true) + box(116, 58, n.R) + box(62, 112, n.D) + mini + T(88, 184, '4 neighbors considered') + axes + '</svg>' +
-    '<div class="calc">left → right   ' + f(n.L) + ' → ' + f(n.R) + '   change ' + f(Math.abs(n.R - n.L)) + '\nup → down      ' + f(n.U) + ' → ' + f(n.D) + '   change ' + f(Math.abs(n.U - n.D)) + '\nrate of change <b>' + p.rate.toFixed(1) + '</b>    cover <b>' + f(p.t) + '</b>\nabruptness = (' + p.rate.toFixed(1) + ' − ' + f(p.t) + ') / (' + p.rate.toFixed(1) + ' + ' + f(p.t) + ')\n           = <b>' + (p.rate + p.t === 0 ? '0 (no cover, no change)' : (p.a < 0 ? '−' : '+') + Math.abs(p.a).toFixed(2)) + '</b></div>' +
+    '<div class="calc">left → right   ' + f(n.L) + ' → ' + f(n.R) + '   (change ' + f(Math.abs(n.R - n.L)) + ')\nup → down      ' + f(n.U) + ' → ' + f(n.D) + '   (change ' + f(Math.abs(n.U - n.D)) + ')\nrate of change <b>' + p.rate.toFixed(1) + '</b>    cover <b>' + f(p.t) + '</b>\nabruptness = (' + p.rate.toFixed(1) + ' − ' + f(p.t) + ') / (' + p.rate.toFixed(1) + ' + ' + f(p.t) + ')\n           = <b>' + (p.rate + p.t === 0 ? '0 (no cover, no change)' : (p.a < 0 ? '−' : '+') + Math.abs(p.a).toFixed(2)) + '</b></div>' +
     '<div class="chip">' + chip + '<span>' + NAMES[p.k] + '</span></div>' +
-    '<div class="edit"><label for="sv">Cover <input id="sv" type="range" min="0" max="100" step="1" value="' + cov[sel[0]][sel[1]] + '"' + (w ? ' disabled' : '') + '><output>' + Math.round(p.t) + ' %</output></label><label for="sw"><input id="sw" type="checkbox"' + (w ? ' checked' : '') + '> Water</label><label for="sp"><input id="sp" type="checkbox"' + (paintOn ? ' checked' : '') + '> Drag on the left grid to paint this value</label><button type="button" class="ghost" id="rs">Reset landscape</button></div>';
+    '<div class="edit"><label for="sv">Cover <input id="sv" type="range" min="0" max="100" step="1" value="' + cov[sel[0]][sel[1]] + '"' + (w ? ' disabled' : '') + '><output>' + Math.round(p.t) + ' %</output></label><div class="opts"><label for="sw"><input id="sw" type="checkbox"' + (w ? ' checked' : '') + '> Water</label><label for="sp"><input id="sp" type="checkbox"' + (paintOn ? ' checked' : '') + '> Drag to paint on left grid</label><button type="button" class="ghost" id="rs">Reset</button></div></div>';
   $('sv').addEventListener('input', function () { cov[sel[0]][sel[1]] = +this.value; var v = this.value; draw(); var s = $('sv'); s.focus(); s.value = v; });
   $('sw').addEventListener('change', function () { wat[sel[0]][sel[1]] = this.checked; draw(); $('sw').focus(); });
   $('sp').addEventListener('change', function () { paintOn = this.checked; $('gA').classList.toggle('paint', paintOn); });
