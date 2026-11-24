@@ -1,8 +1,12 @@
 # Taiga-tundra ecotone (TTE) forest structure pattern mapping  
 
+> Montesano, P.M., Neigh, C.S.R., Macander, M., Feng, M., Noojipady, P. (2020).
+> The bioclimatic extent and pattern of the cold edge of the boreal forest: the circumpolar
+> taiga-tundra ecotone. *Environ. Res. Lett.* 15, 105019. https://doi.org/10.1088/1748-9326/abb2c7
+
 <img src="docs/img/tte_classes_diagram.png" width="100%" alt="Conceptual diagram of the taiga-tundra ecotone classes: tree canopy cover against abruptness, with example pixels for each of the 11 classes">
 
-### Explore the classification concept with the TTE interpretation guide
+## Explore the classification concept with the TTE interpretation guide
 
 [TTE Interpretation Guide](https://pahbs.github.io/tte/docs/tte_interpretation_guide.html): interactive conceptual landscapes of tree cover pixels.
 
@@ -10,13 +14,9 @@ This mapping of TTE pattern uses maps of tree canopy cover across the boreal-tun
 
 <img src="docs/img/tte_boreal_polar_map.png" align="right" width="380" alt="Circumpolar map of the taiga-tundra ecotone forest structure pattern classes (circa 2010)">
 
-Reproducibity & scalability (on NASA MAAP) of the original Google Earth Engine (GEE) workflow using Python 
-`projects/foreststructure/TTE_DATA_v201902v2` (circa 2010) and runs on MAAP DPS with any
-tree canopy cover (TCC) input.
+## Reproducibity & scalability of the TTE classification mapping
 
-> Montesano, P.M., Neigh, C.S.R., Macander, M., Feng, M., Noojipady, P. (2020).
-> The bioclimatic extent and pattern of the cold edge of the boreal forest: the circumpolar
-> taiga-tundra ecotone. *Environ. Res. Lett.* 15, 105019. https://doi.org/10.1088/1748-9326/abb2c7
+Reproducibity & scalability of the original Google Earth Engine (GEE) workflow (applied to circa 2010 tree cover) is now handled using Python on the NASA MAAP. It now runs with any tree canopy cover (TCC) raster input.
 
 | Component | Location |
 |---|---|
@@ -26,7 +26,7 @@ tree canopy cover (TCC) input.
 | Comparison with the GEE tiles | `validation/validate_tte_vs_gee.py` |
 | Original GEE scripts | `gee/` |
 
-## Methods for reproducing original GEE workflow
+### Methods for reproducing original GEE workflow
 
 For each 1-degree tile (`tte_tiles.gpkg`, same tiles as the GEE download):
 
@@ -70,14 +70,14 @@ Output: one COG per tile, `tte_<source>_<tile_num 7 digits>.tif`, float32, NaN =
 `tte_classification`, `tcc`. Pixels outside the 1-degree tile are NaN, so tiles mosaic
 without double counting. Class names are in the band 4 tags.
 
-## Validation against the original TTE map tiles
+### Validation against the original TTE map tiles
 
 Differences: mainly just due to resampling of data coming out of GEE
 
 `validation/validation.md`: 13 tiles. Eurasia (Hansen in both) 90-94% same class; North America
 differs because GEE used `cal_2m_tcc` there.
 
-## Run examples
+### Run examples
 
 ```bash
 # the tree cover sources and their options
@@ -96,6 +96,6 @@ python lib/tte_map.py --tile_num 4082 --outdir /tmp/tte --tcc_source path --tcc_
     --tcc_paths s3://bucket/my_tcc_2020.vrt --tcc_options "resampling=average;floor=5" --out_name mytcc2020
 ```
 
-## Scaling with MAAP DPS for any TCC input
+### Scaling with MAAP DPS for any TCC input
 
 On DPS: `dps/DPS_tte_map.ipynb`.
