@@ -2,6 +2,10 @@
 
 <img src="docs/img/tte_classes_diagram.png" width="100%" alt="Conceptual diagram of the taiga-tundra ecotone classes: tree canopy cover against abruptness, with example pixels for each of the 11 classes">
 
+### Explore the classification concept with the TTE interpretation guide
+
+[TTE Interpretation Guide](https://pahbs.github.io/tte/docs/tte_interpretation_guide.html): interactive conceptual landscapes of tree cover pixels.
+
 This mapping of TTE pattern uses maps of tree canopy cover across the boreal-tundra ecological transition zone. It is built off of the calculation of tree cover "abruptness", which is the normalized difference between the spatial rate of change in tree canopy cover and the tree canopy cover itself, from −1 (uniform) to +1 (abrupt).
 
 <img src="docs/img/tte_boreal_polar_map.png" align="right" width="380" alt="Circumpolar map of the taiga-tundra ecotone forest structure pattern classes (circa 2010)">

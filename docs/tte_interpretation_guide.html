@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TTE Interpretation Guide</title>
+<meta name="description" content="Map interpretation guide for the forest pattern classification of the taiga-tundra ecotone: interactive conceptual landscapes of tree cover pixels.">
+<style>:root { color-scheme: light } body { margin: 0 } [hidden] { display: none !important }</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a bench. Pick a landscape on top, two synced pixel grids in the middle, the selected pixel's arithmetic beside them, its transect below. */
+:root {
+  --bg: #f3f6f5; --panel: #ffffff; --ink: #16211e; --ink2: #4c5a56; --line: #d3dcd9; --accent: #1d6b57; --accent-ink: #ffffff;
+  --sel: #16211e; --water: #a9cdee; --c0: #f4f3ea; --c1: #12482f; --neg: #2f6d8f; --mid: #e9ecea; --pos: #b4562a; --masked: #e3e8e6;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101715; --panel: #18211e; --ink: #e7eeeb; --ink2: #a3b2ad; --line: #2f3c38; --accent: #5cc0a3; --accent-ink: #0c1613;
+  --sel: #ffffff; --water: #355f86; --c0: #24302c; --c1: #8fd6a6; --neg: #6fb3d8; --mid: #35403c; --pos: #e2895c; --masked: #222c29; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #101715; --panel: #18211e; --ink: #e7eeeb; --ink2: #a3b2ad; --line: #2f3c38; --accent: #5cc0a3; --accent-ink: #0c1613;
+  --sel: #ffffff; --water: #355f86; --c0: #24302c; --c1: #8fd6a6; --neg: #6fb3d8; --mid: #35403c; --pos: #e2895c; --masked: #222c29; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-size: 30px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -.01em; text-wrap: balance }
+h2 { font-size: 15px; margin: 0; font-weight: 600 }
+p { margin: 0; max-width: 72ch }
+.lede { color: var(--ink2); font-size: 16px }
+.scen { display: flex; flex-wrap: wrap; gap: 8px }
+button { font: inherit; color: inherit }
+.scen button, .seg button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 7px 12px; cursor: pointer }
+.scen button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600 }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 362px; gap: 24px; align-items: stretch }
+.bench > section { display: flex; flex-direction: column; min-width: 0 }
+@media (max-width: 1040px) { .bench { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } .insp { grid-column: 1 / -1; justify-self: start; max-width: 362px } .bench .px { aspect-ratio: 1 } .bench .grid { grid-template-rows: none; flex: none } }
+@media (max-width: 680px) { .bench { grid-template-columns: minmax(0, 1fr) } }
+.gh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 8px }
+.seg { display: flex; gap: 4px } .seg button { padding: 4px 9px; font-size: 13px }
+.grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); grid-template-rows: repeat(16, minmax(0, 1fr)); flex: 1 1 auto; gap: 1px; background: var(--line); border: 1px solid var(--line); touch-action: manipulation; user-select: none }
+.grid.paint { touch-action: none }
+.px { position: relative; min-height: 0; border: 0; padding: 0; margin: 0; border-radius: 0; font: 600 11px/1 var(--mono); font-variant-numeric: tabular-nums; cursor: pointer; display: grid; place-items: center; min-width: 0 }
+@media (max-width: 420px) { .px { font-size: 9.5px } }
+.px.sel { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--sel); z-index: 3 }
+.px.nb { box-shadow: inset 0 0 0 2px var(--sel); z-index: 2 }
+.pin { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--sel); color: var(--bg); font: 700 10px/16px var(--sans); text-align: center; z-index: 4; pointer-events: none }
+.key { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 12px; margin-top: 10px; font-size: 12px; color: var(--ink2); height: 68px; overflow: hidden }
+.key span { display: inline-flex; align-items: center; gap: 5px } .key i { width: 12px; height: 12px; display: inline-block; border: 1px solid var(--line) }
+.ramp { width: 150px; height: 10px; border: 1px solid var(--line); display: inline-block }
+.insp { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 12px; width: 100% }
+.insp svg { display: block; width: 100%; max-width: 328px; height: auto; aspect-ratio: 290 / 196 }
+.calc { min-height: 131px; font: 13px/1.65 var(--mono); font-variant-numeric: tabular-nums; overflow-x: auto; white-space: pre }
+.calc b { color: var(--accent) }
+.chip { height: 28px; white-space: nowrap; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; font-weight: 600 } .chip i { min-width: 28px; padding: 3px 6px; border-radius: 4px; text-align: center; font: 700 13px/1.2 var(--mono); font-style: normal }
+.edit { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 14px } .edit label { display: flex; align-items: center; gap: 8px } .edit input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent) }
+.edit output { font: 600 13px var(--mono); min-width: 46px; text-align: right }
+.ghost { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 5px 10px; cursor: pointer; justify-self: start }
+.notes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding: 0; margin: 0; list-style: none }
+.notes button { text-align: left; width: 100%; height: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; cursor: pointer; display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start; font-size: 13.5px; line-height: 1.45 }
+.notes button:hover { border-color: var(--accent) } .notes em { font-style: normal; width: 20px; height: 20px; border-radius: 50%; background: var(--sel); color: var(--bg); font: 700 11px/20px var(--sans); text-align: center }
+.row { display: grid; gap: 8px } .tr { overflow-x: auto } .tr svg { display: block; width: 100%; min-width: 480px; height: auto }
+.rules { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); border-top: 1px solid var(--line); padding-top: 20px; color: var(--ink2); font-size: 14px } .rules h2 { color: var(--ink); margin-bottom: 4px }
+text { font-family: var(--sans) }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Map interpretation guide for the forest pattern classification of the taiga-tundra ecotone</h1>
+    <p class="lede">The forest pattern classification of the TTE uses tree cover and its abruptness. Abruptness compares how much tree cover changes across a 30 m pixel with how much cover the pixel has. To explore this classification scheme, choose a landscape, then select any pixel to see its arithmetic. Arrow keys move the selection.</p>
+  </header>
+  <div class="row"><h2>Conceptual landscape types</h2><div class="scen" id="scen" role="group" aria-label="Conceptual landscape types"></div></div>
+  <p id="about"></p>
+  <div class="bench">
+    <section aria-label="Tree cover">
+      <div class="gh"><h2>Tree cover (%)</h2></div>
+      <div class="grid" id="gA"></div>
+      <div class="key"><span>0 <i class="ramp" style="background:linear-gradient(90deg,var(--c0),var(--c1))"></i> 100 %</span><span><i style="background:var(--water)"></i>water</span></div>
+    </section>
+    <section aria-label="Forest structure pattern">
+      <div class="gh"><h2>Forest structure pattern</h2><div class="seg" id="seg" role="group" aria-label="Show"></div></div>
+      <div class="grid" id="gB"></div>
+      <div class="key" id="keyB"></div>
+    </section>
+    <aside class="insp" aria-live="polite" id="insp"></aside>
+  </div>
+  <div class="row"><h2>Points to notice</h2><ul class="notes" id="notes"></ul></div>
+  <div class="row"><h2 id="trT">Transect</h2><div class="tr" id="tr"></div></div>
+  <div class="rules">
+    <div><h2>The rate of change</h2><p>Calculated as a terrain slope, with cover (0 to 100) in place of elevation in metres. No real height is implied. It compares left with right and up with down, 60 m apart, and never uses the pixel itself. The angle is rescaled so 90° is 100; it tops out near 75.</p></div>
+    <div><h2>Abruptness</h2><p>(rate − cover) / (rate + cover), from −1 to +1. At 0 the rate equals the cover. Above +0.5 it is more than 3 times the cover; below −0.5, less than one third.</p></div>
+    <div><h2>Masked out</h2><p>Pixels with abruptness exactly 0 are masked, which removes treeless ground with no change around it. At the border of these grids the outer pixels are repeated, so every pixel has four neighbours.</p></div>
+  </div>
+</main>
+<script>
+/*CORE*/
+function rateOf(L, R, U, D) { return Math.atan(Math.hypot((R - L) / 60, (U - D) / 60)) * 180 / Math.PI / 90 * 100; }
+function abruptOf(rate, t) { var den = rate + t; return den === 0 ? 0 : (rate - t) / den; }
+function classOf(t, a, water) {
+  if (!(Math.abs(a) > 0)) return 0;
+  if (t > 30) return 9;
+  if (t > 5) return a <= -0.5 ? 5 : a <= 0 ? 6 : a <= 0.5 ? 7 : 8;
+  if (a === 1) return water ? 11 : 10;
+  return a <= -0.5 ? 1 : a <= 0 ? 2 : a <= 0.5 ? 3 : 4;
+}
+function solve(cov, wat) {
+  var H = cov.length, W = cov[0].length, z = cov.map(function (r, i) { return r.map(function (v, j) { return wat[i][j] ? 0 : v; }); });
+  var g = function (i, j) { return z[Math.min(Math.max(i, 0), H - 1)][Math.min(Math.max(j, 0), W - 1)]; };
+  return z.map(function (r, i) { return r.map(function (t, j) {
+    var n = { L: g(i, j - 1), R: g(i, j + 1), U: g(i - 1, j), D: g(i + 1, j) }, rate = rateOf(n.L, n.R, n.U, n.D), a = abruptOf(rate, t);
+    return { t: t, n: n, rate: rate, a: a, k: classOf(t, a, wat[i][j]) };
+  }); });
+}
+/*END*/
+var H = 16, W = 13, NAMES = ['Masked', 'Sparse & Uniform', 'Sparse & Diffuse-gradual', 'Sparse & Diffuse-rapid', 'Sparse & Abrupt', 'Open & Uniform', 'Open & Diffuse-gradual', 'Open & Diffuse-rapid', 'Open & Abrupt', 'Intermediate & Closed', 'Non-forest edge (dry)', 'Non-forest edge (wet)'];
+var COL = ['', '#5255a3', '#1796a3', '#fdbf6f', '#ff7f00', '#ffffbf', '#d9ef8b', '#91cf60', '#1a9850', '#c4c4c4', '#e00000', '#1a1aff'], LIGHT = { 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 9: 1 };
+function fill(f) { var a = []; for (var i = 0; i < H; i++) { a.push([]); for (var j = 0; j < W; j++) a[i].push(f(i, j)); } return a; }
+function cols(v) { return fill(function (i, j) { return v[j]; }); }
+function none() { return fill(function () { return false; }); }
+var S = [
+  { id: 'gradual', name: 'Gradual treeline', cov: cols([36, 33, 30, 27, 24, 21, 18, 15, 12, 9, 6, 3, 0]), sel: [7, 11], about: 'Cover falls steadily by 3 % per pixel, so the rate of change is the same almost everywhere. The classes still change, because the cover it is compared with gets smaller.',
+    notes: [[7, 3, 'Same slope, more cover: a rate of 6 is small beside 27 % cover, so this is Open & Uniform.'], [7, 8, 'Same slope, 12 % cover: Open & Diffuse-gradual.'], [7, 11, 'Same slope, 3 % cover: the rate is now twice the cover, so Sparse & Diffuse-rapid. Nothing changed but the cover.'], [7, 12, 'No cover next to a little cover: a non-forest edge at +1, even though the step is only 3 %.']] },
+  { id: 'rapid', name: 'Rapid treeline', cov: cols([72, 71, 68, 60, 46, 30, 16, 7, 2, 1, 0, 0, 0]), sel: [7, 8], about: 'A closed stand gives way to tundra over a few pixels. The highest abruptness is at the foot of the gradient, where little cover remains.',
+    notes: [[7, 4, 'The steepest part of the gradient is over 30 % cover, so it is class 9 and abruptness is not used.'], [7, 7, 'Open & Diffuse-rapid: the rate is about twice the cover.'], [7, 8, '2 % cover beside 7 %: the same kind of change is now more than 3 times the cover, so Sparse & Abrupt.'], [7, 11, 'Treeless with no change: masked, not mapped.']] },
+  { id: 'edge', name: 'Sharp edge', cov: cols([60, 60, 60, 60, 60, 60, 0, 0, 0, 0, 0, 0, 0]), sel: [7, 6], about: 'A forest edge as sharp as 30 m pixels allow: 60 % cover beside none. No pixel gets an Abrupt class.',
+    notes: [[7, 5, 'The last forest pixel: a high rate, but high cover too, so abruptness is near 0. Over 30 % it is class 9 anyway.'], [7, 6, 'The first bare pixel carries the edge: no cover, so exactly +1 and Non-forest edge.'], [7, 8, 'Two pixels out there is nothing to see: masked.']] },
+  { id: 'foot', name: 'Edge with scattered trees', cov: cols([60, 60, 60, 60, 60, 60, 3, 3, 3, 3, 3, 3, 3]), sel: [7, 6], about: 'The same edge, with 3 % cover instead of none on the tundra side. Now the edge pixel is Sparse & Abrupt.',
+    notes: [[7, 6, 'A little cover at the foot of a dense stand is what the Abrupt classes need.'], [7, 8, 'Further out, 3 % everywhere: Sparse & Uniform rather than masked.'], [7, 5, 'The forest side is unchanged: class 9.']] },
+  { id: 'islands', name: 'Tree islands', sel: [2, 2], about: 'Patches of trees in 1 % cover. The pixel with the trees can be the most uniform one on the map.',
+    cov: fill(function (i, j) { if (i === 2 && j === 2) return 100; if (i === 7 && j === 2) return 20; if (i >= 2 && i <= 3 && j >= 6 && j <= 7) return 20; if (i >= 6 && i <= 8 && j >= 8 && j <= 10) return 40; if ((i === 12 && j === 4) || (i === 13 && j === 5)) return 60; return 1; }),
+    notes: [[2, 2, 'A lone 100 % pixel: left equals right and up equals down, so the rate is 0 and abruptness is −1, the minimum.'], [2, 1, 'Its side neighbours get +0.97. The island shows as a plus sign of Sparse & Abrupt.'], [1, 1, 'A corner neighbour touches the island but has no side neighbour in it: uniform.'], [7, 2, 'A lone 20 % pixel is mapped as Open & Uniform.'], [2, 6, 'A 2 × 2 patch: each pixel has trees on one side only, so its edges are seen.'], [7, 9, 'The middle of a 3 × 3 patch is uniform because its four neighbours match.'], [12, 4, 'Two 60 % pixels touching at a corner: each has four matching 1 % neighbours, so both are uniform.'], [12, 5, 'A 1 % pixel between them has dense cover on two sides at once, to its left and below, so its rate is high.']] },
+  { id: 'gaps', name: 'Gaps in forest', sel: [2, 3], about: 'Openings in 25 % cover. A gap one pixel wide has the same cover on both sides, so it looks uniform.',
+    cov: fill(function (i, j) { if (i === 2 && j === 3) return 4; if (i >= 6 && i <= 7 && j >= 3 && j <= 4) return 4; if (i >= 10 && i <= 12 && j >= 2 && j <= 4) return 4; if (j === 9) return 4; return 25; }),
+    notes: [[2, 3, 'A one-pixel gap: four higher neighbours, yet no tilt. Sparse & Uniform.'], [2, 2, 'The forest beside the gap does register it: the rate rises to nearly its own cover.'], [6, 3, 'A 2 × 2 gap: forest on one side only in each direction, so Sparse & Abrupt.'], [11, 3, 'The middle of a 3 × 3 gap: low cover all around, so Sparse & Uniform.'], [5, 9, 'A one-pixel-wide corridor of low cover is uniform along its whole length.']] },
+  { id: 'lines', name: 'Thin lines of trees', sel: [7, 2], about: 'Strips of 20 % cover in tundra, 1, 2 and 3 pixels wide, such as trees along a stream. Width decides whether the strip itself is seen as a gradient.',
+    cov: fill(function (i, j) { return j === 2 || j === 5 || j === 6 || (j >= 9 && j <= 11) ? 20 : 0; }),
+    notes: [[7, 2, 'One pixel wide: both sides are bare and equal, so −1 and Open & Uniform.'], [7, 5, 'Two pixels wide: each pixel has trees on one side, so the rate just exceeds the cover. Open & Diffuse-rapid.'], [7, 10, 'Three wide: the middle is uniform and only the outer pixels see the edge.'], [7, 3, 'Bare ground beside trees: Non-forest edge in every case.']] },
+  { id: 'mosaic', name: 'Checkerboard', sel: [7, 7], about: 'Alternating 20 % and 0 %: as patchy as it can be at 30 m, with no slope anywhere.',
+    cov: fill(function (i, j) { return (i + j) % 2 ? 0 : 20; }),
+    notes: [[7, 7, 'Each 20 % pixel sits among four bare ones that match: Open & Uniform.'], [7, 8, 'Each bare pixel sits among four 20 % pixels: no slope and no cover, so it is masked.'], [0, 0, 'At the border of this grid the repeated outer pixels break the symmetry. That is an effect of the grid, not of the method.']] },
+  { id: 'shore', name: 'Lakeshore', sel: [7, 6], about: 'Forest meets water. Water is set to 0 % cover before anything is calculated, so a shore looks like a forest edge.',
+    cov: fill(function (i, j) { return j >= 6 && !(i >= 6 && i <= 9 && j >= 9 && j <= 10) ? 0 : 22; }), wat: fill(function (i, j) { return j >= 6 && !(i >= 6 && i <= 9 && j >= 9 && j <= 10); }),
+    notes: [[7, 6, 'Water beside trees: Non-forest edge (wet).'], [7, 5, 'The forest at the shore: the rate slightly exceeds its cover, so it reads as a gradient although the trees simply stop at the water.'], [7, 9, 'A small wooded island is edge almost everywhere.'], [2, 9, 'Open water away from trees: masked.']] }
+];
+var cur, cov, wat, out, sel, view = 'class', painting = false, paintOn = false;
+var $ = function (id) { return document.getElementById(id); };
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function rgb(h) { return [1, 3, 5].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); }
+function mix(a, b, f) { var p = rgb(a), q = rgb(b); return 'rgb(' + p.map(function (v, i) { return Math.round(v + (q[i] - v) * f); }).join(',') + ')'; }
+function ink(c) { var m = c[0] === '#' ? rgb(c) : c.match(/\d+/g).map(Number); return (m[0] * 299 + m[1] * 587 + m[2] * 114) / 1000 > 140 ? '#14201c' : '#ffffff'; }
+function coverCol(t, w) { return w ? css('--water') : mix(css('--c0'), css('--c1'), Math.sqrt(t / 100)); }
+function resCol(p) {
+  if (view === 'rate') return mix(css('--c0'), css('--pos'), Math.min(p.rate / 75, 1));
+  if (!p.k) return css('--masked');
+  if (view === 'class') return COL[p.k];
+  return p.a < 0 ? mix(css('--mid'), css('--neg'), -p.a) : mix(css('--mid'), css('--pos'), p.a);
+}
+function sg(a) { return (a > 0 ? '+' : a < 0 ? '−' : '') + Math.abs(a).toFixed(1); }
+function build(id, isA) {
+  var g = $(id); g.textContent = '';
+  for (var i = 0; i < H; i++) for (var j = 0; j < W; j++) (function (i, j) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'px'; b.id = id + i + '_' + j; b.tabIndex = -1;
+    b.addEventListener('pointerdown', function (e) { if (isA && paintOn) { e.preventDefault(); painting = true; put(i, j); } else pick(i, j, b); });
+    b.addEventListener('click', function () { if (!(isA && paintOn)) pick(i, j, b); });
+    b.addEventListener('keydown', function (e) { var d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.key]; if (!d) return; e.preventDefault(); pick(Math.min(Math.max(i + d[0], 0), H - 1), Math.min(Math.max(j + d[1], 0), W - 1)); $(id + sel[0] + '_' + sel[1]).focus(); });
+    g.appendChild(b);
+  })(i, j);
+}
+$('gA').addEventListener('pointermove', function (e) { if (!painting) return; var el = document.elementFromPoint(e.clientX, e.clientY), m = el && /^gA(\d+)_(\d+)$/.exec(el.id); if (m) put(+m[1], +m[2]); });
+window.addEventListener('pointerup', function () { painting = false; });
+function put(i, j) { cov[i][j] = cov[sel[0]][sel[1]]; wat[i][j] = wat[sel[0]][sel[1]]; draw(); }
+function pick(i, j) { sel = [i, j]; draw(); }
+function load(s) { cur = s; cov = s.cov.map(function (r) { return r.slice(); }); wat = (s.wat || none()).map(function (r) { return r.slice(); }); sel = s.sel.slice(); paintOn = false;
+  Array.prototype.forEach.call($('scen').children, function (b) { b.setAttribute('aria-pressed', b.dataset.id === s.id); }); $('about').textContent = s.about;
+  $('notes').textContent = ''; s.notes.forEach(function (n, x) { var li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.innerHTML = '<em></em><span></span>'; b.firstChild.textContent = x + 1; b.lastChild.textContent = n[2]; b.addEventListener('click', function () { pick(n[0], n[1]); }); li.appendChild(b); $('notes').appendChild(li); }); draw(); }
+function draw() {
+  out = solve(cov, wat); $('gA').classList.toggle('paint', paintOn);
+  for (var i = 0; i < H; i++) for (var j = 0; j < W; j++) {
+    var p = out[i][j], a = $('gA' + i + '_' + j), b = $('gB' + i + '_' + j), ca = coverCol(p.t, wat[i][j]), cb = resCol(p);
+    a.style.background = ca; a.style.color = ink(ca); a.textContent = Math.round(p.t);
+    b.style.background = cb; b.style.color = ink(cb); b.textContent = view === 'rate' ? Math.round(p.rate) : !p.k ? '' : view === 'class' ? p.k : sg(p.a);
+    var isS = i === sel[0] && j === sel[1], nb = Math.abs(i - sel[0]) + Math.abs(j - sel[1]) === 1;
+    [a, b].forEach(function (el) { el.classList.toggle('sel', isS); el.tabIndex = isS ? 0 : -1; el.setAttribute('aria-label', 'Row ' + (i + 1) + ' column ' + (j + 1) + ': cover ' + Math.round(p.t) + ' percent, ' + NAMES[p.k]); });
+    a.classList.toggle('nb', nb);
+    cur.notes.forEach(function (n, x) { if (n[0] === i && n[1] === j) [a, b].forEach(function (el) { var s = document.createElement('span'); s.className = 'pin'; s.textContent = x + 1; el.appendChild(s); }); });
+  }
+  key(); inspect(); transect();
+}
+function key() {
+  if (view === 'class') { var ks = {}; out.forEach(function (r) { r.forEach(function (p) { ks[p.k] = 1; }); }); $('keyB').innerHTML = Object.keys(ks).sort(function (a, b) { return a - b; }).map(function (k) { return '<span><i style="background:' + (+k ? COL[k] : 'var(--masked)') + '"></i>' + (+k ? k + ' ' : '') + NAMES[k] + '</span>'; }).join(''); }
+  else if (view === 'abruptness') $('keyB').innerHTML = '<span>−1 uniform <i class="ramp" style="background:linear-gradient(90deg,var(--neg),var(--mid),var(--pos))"></i> +1 abrupt</span><span><i style="background:var(--masked)"></i>masked</span>';
+  else $('keyB').innerHTML = '<span>0 <i class="ramp" style="background:linear-gradient(90deg,var(--c0),var(--pos))"></i> 75</span>';
+}
+function inspect() {
+  var p = out[sel[0]][sel[1]], n = p.n, w = wat[sel[0]][sel[1]], f = function (v) { return Math.round(v * 10) / 10; };
+  var box = function (x, y, v, big) { var c = coverCol(v, big && w); return '<rect x="' + x + '" y="' + y + '" width="52" height="52" fill="' + c + '" stroke="' + (big ? css('--sel') : css('--line')) + '" stroke-width="' + (big ? 3 : 1) + '"/><text x="' + (x + 26) + '" y="' + (y + 32) + '" text-anchor="middle" font-size="17" font-weight="600" fill="' + ink(c) + '">' + f(v) + '</text>'; };
+  var T = function (x, y, s) { return '<text x="' + x + '" y="' + y + '" font-size="12" text-anchor="middle" fill="' + css('--ink2') + '">' + s + '</text>'; };
+  var cx = function (t) { return 208 + Math.sqrt(t) * 7.6; }, cy = function (a) { return 92 - a * 70; };
+  var bands = [[0, 5, [1, 2, 3, 4]], [5, 30, [5, 6, 7, 8]]], mini = '';
+  bands.forEach(function (b) { b[2].forEach(function (k, q) { mini += '<rect x="' + cx(b[0]) + '" y="' + cy(-1 + (q + 1) * .5) + '" width="' + (cx(b[1]) - cx(b[0])) + '" height="35" fill="' + COL[k] + '"/>'; }); });
+  mini += '<rect x="' + cx(30) + '" y="' + cy(1) + '" width="' + (cx(100) - cx(30)) + '" height="140" fill="' + COL[9] + '"/><circle cx="' + cx(p.t) + '" cy="' + cy(p.a) + '" r="6" fill="#fff" stroke="#14201c" stroke-width="2.5"/>';
+  var A = function (x, y, s, anchor, size, extra) { return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" text-anchor="' + anchor + '" fill="' + css('--ink2') + '"' + (extra || '') + '>' + s + '</text>'; };
+  var axes = '';
+  [[1, '+1'], [.5, '+0.5'], [0, '0'], [-.5, '−0.5'], [-1, '−1']].forEach(function (q) { axes += A(205, cy(q[0]) + 3.5, q[1], 'end', 10); });
+  [0, 5, 30, 100].forEach(function (v) { axes += A(v === 100 ? 287 : cx(v), 174, v, v === 100 ? 'end' : 'middle', 10); });
+  axes += A(246, 190, 'Tree cover (%)', 'middle', 11.5) + A(179, 92, 'Abruptness', 'middle', 11.5, ' transform="rotate(-90 179 92)"');
+  var chip = p.k ? '<i style="background:' + COL[p.k] + ';color:' + (LIGHT[p.k] ? '#14201c' : '#fff') + '">' + p.k + '</i>' : '<i style="background:var(--masked)">–</i>';
+  $('insp').innerHTML = '<h2 style="height:23px">Selected tree cover pixel and neighbors</h2><svg viewBox="0 0 290 196" role="img" aria-label="The pixel, its four side neighbours, and its place on the class chart">' +
+    box(62, 4, n.U) + box(8, 58, n.L) + box(62, 58, p.t, true) + box(116, 58, n.R) + box(62, 112, n.D) + mini + T(88, 184, '4 neighbors considered') + axes + '</svg>' +
+    '<div class="calc">left → right   ' + f(n.L) + ' → ' + f(n.R) + '   change ' + f(Math.abs(n.R - n.L)) + '\nup → down      ' + f(n.U) + ' → ' + f(n.D) + '   change ' + f(Math.abs(n.U - n.D)) + '\nrate of change <b>' + p.rate.toFixed(1) + '</b>    cover <b>' + f(p.t) + '</b>\nabruptness = (' + p.rate.toFixed(1) + ' − ' + f(p.t) + ') / (' + p.rate.toFixed(1) + ' + ' + f(p.t) + ')\n           = <b>' + (p.rate + p.t === 0 ? '0 (no cover, no change)' : (p.a < 0 ? '−' : '+') + Math.abs(p.a).toFixed(2)) + '</b></div>' +
+    '<div class="chip">' + chip + '<span>' + NAMES[p.k] + '</span></div>' +
+    '<div class="edit"><label for="sv">Cover <input id="sv" type="range" min="0" max="100" step="1" value="' + cov[sel[0]][sel[1]] + '"' + (w ? ' disabled' : '') + '><output>' + Math.round(p.t) + ' %</output></label><label for="sw"><input id="sw" type="checkbox"' + (w ? ' checked' : '') + '> Water</label><label for="sp"><input id="sp" type="checkbox"' + (paintOn ? ' checked' : '') + '> Drag on the left grid to paint this value</label><button type="button" class="ghost" id="rs">Reset landscape</button></div>';
+  $('sv').addEventListener('input', function () { cov[sel[0]][sel[1]] = +this.value; var v = this.value; draw(); var s = $('sv'); s.focus(); s.value = v; });
+  $('sw').addEventListener('change', function () { wat[sel[0]][sel[1]] = this.checked; draw(); $('sw').focus(); });
+  $('sp').addEventListener('change', function () { paintOn = this.checked; $('gA').classList.toggle('paint', paintOn); });
+  $('rs').addEventListener('click', function () { load(cur); });
+}
+function transect() {
+  var r = out[sel[0]], X = 44, Y = 150, bw = 68, s = '', t2 = css('--ink2');
+  [0, 25, 50, 75, 100].forEach(function (v) { var y = Y - v * 1.3; s += '<line x1="' + X + '" x2="' + (X + W * bw) + '" y1="' + y + '" y2="' + y + '" stroke="' + css('--line') + '"/><text x="' + (X - 8) + '" y="' + (y + 4) + '" font-size="12" text-anchor="end" fill="' + t2 + '">' + v + '</text>'; });
+  r.forEach(function (p, j) { var x = X + j * bw, h = p.t * 1.3, c = p.k ? COL[p.k] : css('--masked');
+    s += '<rect x="' + (x + 5) + '" y="' + (Y - h) + '" width="' + (bw - 10) + '" height="' + h + '" fill="' + (wat[sel[0]][j] ? css('--water') : coverCol(Math.max(p.t, 18), false)) + '"/>';
+    s += '<rect x="' + (x + 2) + '" y="' + (Y + 8) + '" width="' + (bw - 4) + '" height="26" fill="' + c + '"/><text x="' + (x + bw / 2) + '" y="' + (Y + 26) + '" font-size="13" font-weight="700" text-anchor="middle" fill="' + ink(c) + '">' + (p.k || '') + '</text><text x="' + (x + bw / 2) + '" y="' + (Y + 52) + '" font-size="12" text-anchor="middle" fill="' + t2 + '">' + (p.k ? sg(p.a) : 'masked') + '</text>';
+    if (j === sel[1]) s += '<rect x="' + (x + 1) + '" y="12" width="' + (bw - 2) + '" height="' + (Y + 46) + '" fill="none" stroke="' + css('--sel') + '" stroke-width="2"/>'; });
+  $('trT').textContent = 'Row ' + (sel[0] + 1) + ': tree cover, class and abruptness';
+  $('tr').innerHTML = '<svg viewBox="0 0 ' + (X + W * bw + 6) + ' 212" role="img" aria-label="Tree cover, class and abruptness along the selected row">' + s + '</svg>';
+}
+S.forEach(function (s) { var b = document.createElement('button'); b.type = 'button'; b.textContent = s.name; b.dataset.id = s.id; b.addEventListener('click', function () { load(s); }); $('scen').appendChild(b); });
+[['class', 'Class'], ['abruptness', 'Abruptness'], ['rate', 'Rate']].forEach(function (v) { var b = document.createElement('button'); b.type = 'button'; b.textContent = v[1]; b.setAttribute('aria-pressed', v[0] === view); b.addEventListener('click', function () { view = v[0]; Array.prototype.forEach.call($('seg').children, function (c) { c.setAttribute('aria-pressed', c === b); }); draw(); }); $('seg').appendChild(b); });
+build('gA', true); build('gB', false); load(S[0]);
+new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>
