@@ -567,10 +567,18 @@ def main():
                  gsw_version=a.gsw_version, domain_path=a.domain_path, tiles_gpkg=a.tiles_gpkg,
                  out_name=a.out_name, emulate_gee=not a.no_gee_emulation, stac_entries=entries)
     if entries:
-        import tte_stac
-        for f in tte_stac.write_catalog(entries, a.outdir):
-            print('  STAC item', f)
-        print('  STAC catalog', os.path.join(a.outdir, 'catalog.json'))
+        # A STAC problem must not fail the job: the COGs are kept (and uploaded by DPS) either way.
+        try:
+            import tte_stac
+            for f in tte_stac.write_catalog(entries, a.outdir):
+                print('  STAC item', f)
+            print('  STAC catalog', os.path.join(a.outdir, 'catalog.json'))
+        except Exception:
+            import traceback
+            err = traceback.format_exc()
+            print('  STAC NOT WRITTEN; the COGs are kept. Error:\n' + err)
+            with open(os.path.join(a.outdir, 'stac_error.txt'), 'w') as f:
+                f.write(err)
 
 
 if __name__ == '__main__':

@@ -191,6 +191,19 @@ def make_collection(items):
     return col
 
 
+def _validate(obj, method='validate'):
+    """STAC validation needs jsonschema; without it, warn and go on (the files are still written).
+    Real validation errors are raised."""
+    try:
+        getattr(obj, method)()
+        return True
+    except Exception as e:
+        if 'jsonschema' in str(e):
+            print('  WARNING: STAC not validated (jsonschema not installed)')
+            return False
+        raise
+
+
 def write_catalog(entries, out_dir, overwrite=False):
     """entries: list of dict(cog=path, geom=shapely lon/lat polygon, run_props=..., summary=...).
     Writes catalog.json + collection + items in out_dir (see module docstring). Returns item json paths."""
@@ -208,9 +221,8 @@ def write_catalog(entries, out_dir, overwrite=False):
     cat.normalize_hrefs(out_dir)
     cat.make_all_asset_hrefs_relative()
     for it in items:
-        it.validate()
         json.dumps(it.to_dict(), allow_nan=False)       # strict JSON: no NaN/Infinity
-    col.validate()
-    cat.validate_all()
+    if _validate(cat, 'validate_all'):                  # catalog, collection and items
+        print('  STAC validated')
     cat.save(catalog_type=pystac.CatalogType.SELF_CONTAINED)
     return [it.get_self_href() for it in items]

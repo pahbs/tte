@@ -3,7 +3,7 @@
 # builds the container (build_command on base_container_url) and the CWL process from it.
 # Inputs reach run.sh by name: --tile_num 4209 --tcc_source <source> --tcc_year <year> ...
 algorithm_name: run_tte_map
-algorithm_version: tte_map_v1            # git tag in code_repository
+algorithm_version: tte_map_v1.1          # git tag in code_repository
 algorithm_description: >-
   Taiga-tundra ecotone (TTE) forest structure pattern map (Montesano et al. 2020, ERL 15:105019)
   for 1-degree tiles, from any tree canopy cover source (tcc_source, tcc_year, tcc_options; the sources
@@ -14,7 +14,7 @@ algorithm_description: >-
 code_repository: https://github.com/pahbs/tte.git
 run_command: tte/dps/alg_tte_map/run.sh
 build_command: tte/dps/alg_tte_map/build.sh
-base_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+base_container_url: mas.maap-project.org/root/maap-workspaces/custom_images/maap_base:v6.0.0
 ram_min: 8                               # GB
 cores_min: 1
 author: Paul Montesano
