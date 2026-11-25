@@ -447,6 +447,16 @@ def footprint_mask(geom_4326, transform, shape):
     return geometry_mask([g], out_shape=shape, transform=transform, invert=True)
 
 
+def grow1(mask):
+    """Boolean mask grown by one pixel in the 4 directions."""
+    g = mask.copy()
+    g[1:] |= mask[:-1]
+    g[:-1] |= mask[1:]
+    g[:, 1:] |= mask[:, :-1]
+    g[:, :-1] |= mask[:, 1:]
+    return g
+
+
 def write_cog(bands, transform, out_fn, crs=LAEA_CRS, tags=None):
     # Build in local temp space, then copy: GTiff writing needs random access, which the
     # MAAP Hub bucket mounts (~/my-*-bucket) don't support.
@@ -493,14 +503,17 @@ def run_tile(tile_num, outdir, tcc_source, tcc_year, tcc_options=None, tcc_paths
         if domain.sum() == 0:
             print('  tile is outside the TTE domain; nothing written')
             return None
-        tcc = ts.read_tcc(tcc_source, transform, shape, tcc_year, tcc_options, tcc_paths, emulate_gee)
+        # tree cover is used at domain pixels of the tile and, for the slope, their 4 neighbours
+        inside = footprint_mask(geom, transform, shape)
+        need = domain & grow1(inside)
+        print(f'  domain pixels in the tile: {need.sum()}')
+        tcc = ts.read_tcc(tcc_source, transform, shape, tcc_year, tcc_options, tcc_paths, emulate_gee, need=need)
         print(f'  tcc read: {tcc_source} {tcc_year} {tcc_options or ""}  ({time.time() - t0:.0f}s)')
         occ = water_gsw(transform, shape, gsw_version, emulate_gee=emulate_gee)
         print(f'  water read  ({time.time() - t0:.0f}s)')
 
     out = classify(tcc, domain, occ)
 
-    inside = footprint_mask(geom, transform, shape)
     for k in out:
         out[k][~inside] = np.nan
 

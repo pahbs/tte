@@ -29,6 +29,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -251,12 +252,49 @@ def meta_quadkeys(box, zoom):
     return [_quadkey(x, y, zoom) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
 
 
-def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, threads=8):
+def _need_points(need, transform, step=8):
+    """EPSG:3857 x, y of points every `step` cells on the needed area, grown by one step (None = the whole grid)."""
+    h, w = need.shape
+    H, W = -(-h // step), -(-w // step)
+    c = np.zeros((H * step, W * step), bool)
+    c[:h, :w] = need
+    c = c.reshape(H, step, W, step).any(axis=(1, 3))
+    g = np.pad(c, 1)                                         # grow by one coarse cell, 8 directions
+    g = np.logical_or.reduce([np.roll(g, (a, b), (0, 1)) for a in (-1, 0, 1) for b in (-1, 0, 1)])
+    r, k = np.nonzero(g)
+    x = transform.c + ((k - 1) + 0.5) * step * transform.a
+    y = transform.f + ((r - 1) + 0.5) * step * transform.e
+    from pyproj import Transformer
+    return Transformer.from_crs(tm.LAEA_CRS, 'EPSG:3857', always_xy=True).transform(x, y)
+
+
+MERC = 20037508.342789244
+
+
+def _exists(url, tries=6):
+    """False only if the server says the file is not there (404); other failures are retried, then raised."""
+    for i in range(tries):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, method='HEAD'), timeout=60):
+                return True
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return False
+            err = e
+        except OSError as e:
+            err = e
+        time.sleep(2 ** i)
+    raise RuntimeError(f'cannot check {url}: {err}')
+
+
+def tcc_meta_chm(transform, shape, version, ht_min, need=None, block=2048, factor=8, threads=8, files=1):
     """Percent of canopy height map pixels >= ht_min (m) in each grid cell (Meta/WRI, ~1.2 m in
     EPSG:3857, ~0.4-0.5 m on the ground at 65-72 N).
     Each tile is read block by block and reduced in numpy to `factor` x `factor` counts of tall and
     valid pixels (~3.5 m on the ground at factor 8), then the counts are warped to the grid once
-    with Resampling.sum, so every source pixel counts once."""
+    with Resampling.sum, so every source pixel counts once.
+    need: boolean grid, the cells whose value is used; only the files and blocks under them are read (other
+    cells are undefined). files: how many files are processed at once; each needs about 1-3 GB, so 1 fits an 8 GB worker."""
     cfg = META_CHM[version]
     tall = np.zeros(shape, np.float64)
     valid = np.zeros(shape, np.float64)
@@ -267,14 +305,33 @@ def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, thread
     gy = (transform.f + h * transform.e, transform.f)
     env = dict(GTIFF_SRS_SOURCE='EPSG', GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR', CPL_VSIL_CURL_ALLOWED_EXTENSIONS='.tif',
                GDAL_HTTP_MAX_RETRY='5', GDAL_HTTP_RETRY_DELAY='3', GDAL_CACHEMAX=512)
-    with rasterio.Env(**env):
-        for qk in meta_quadkeys(_box(transform, shape, pad=0.01), cfg['zoom']):
-            try:
-                src = rasterio.open('/vsicurl/' + cfg['url'].format(qk=qk))
-            except Exception:
-                continue                                     # no tile here (ocean, no coverage)
+    n = 2 ** cfg['zoom']
+    size = 2 * MERC / n                                      # width of a file in EPSG:3857
+    px, py = _need_points(np.ones(shape, bool) if need is None else need, transform)
+    tx = np.floor((px + MERC) / size).astype(int) % n
+    ty = np.floor((MERC - py) / size).astype(int)
+    by_file = {}
+    for key in sorted(set(zip(ty.tolist(), tx.tolist()))):   # rows, then columns, as meta_quadkeys
+        by_file[key] = (tx == key[1]) & (ty == key[0])
+
+    def one(key):
+        """One file: (row0, col0, warped tall, warped valid) over the part of the grid it fills, or None."""
+        url = cfg['url'].format(qk=_quadkey(key[1], key[0], cfg['zoom']))
+        with rasterio.Env(**env):
+            for i in range(4):
+                try:
+                    src = rasterio.open('/vsicurl/' + url)
+                    break
+                except rasterio.errors.RasterioIOError:
+                    if not _exists(url):
+                        return None                          # no tile here (ocean, no coverage)
+                    if i == 3:
+                        raise
+                    time.sleep(3 * (i + 1))
             with src:
                 b = transform_bounds(tm.LAEA_CRS, src.crs, gx[0], gy[0], gx[1], gy[1], densify_pts=51)
+                if b[0] > b[2]:
+                    b = (-MERC, b[1], MERC, b[3])            # grid crosses the antimeridian
                 win = from_bounds(*b, src.transform)
                 # window snapped to multiples of F (tiles are 2^n pixels wide, so F divides them)
                 r0 = max(int(win.row_off) // F * F, 0)
@@ -282,10 +339,19 @@ def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, thread
                 r1 = min(int(math.ceil((win.row_off + win.height) / F)) * F, src.height)
                 c1 = min(int(math.ceil((win.col_off + win.width) / F)) * F, src.width)
                 if r1 <= r0 or c1 <= c0:
-                    continue
+                    return None
+                # the blocks under needed cells
+                m = by_file[key]
+                pc = ((px[m] - src.transform.c) / src.transform.a).astype(int)
+                pr = ((py[m] - src.transform.f) / src.transform.e).astype(int)
+                ok = (pr >= r0) & (pr < r1) & (pc >= c0) & (pc < c1)
+                jobs = sorted({(r0 + int(r) * block, c0 + int(c) * block)
+                               for r, c in set(zip(((pr[ok] - r0) // block).tolist(), ((pc[ok] - c0) // block).tolist()))})
+                if not jobs:
+                    return None
                 n_tall = np.zeros(((r1 - r0) // F, (c1 - c0) // F), np.float32)
                 n_ok = np.zeros_like(n_tall)
-                url = src.name
+                name = src.name
                 local = threading.local()
                 handles = []
 
@@ -295,7 +361,7 @@ def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, thread
                     if not hasattr(local, 'src'):
                         local.env = rasterio.Env(**env)          # GDAL options are per thread
                         local.env.__enter__()
-                        local.src = rasterio.open(url)
+                        local.src = rasterio.open(name)
                         handles.append((local.env, local.src))
                     ww = Window(c, r, min(block, c1 - c), min(block, r1 - r))
                     a = local.src.read(1, window=ww, masked=True)
@@ -304,8 +370,7 @@ def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, thread
                     red = lambda m: m.reshape(hh // F, F, wd // F, F).sum(axis=(1, 3), dtype=np.int32)
                     return r, c, red((a.data >= ht_min) & ok), red(ok)
 
-                jobs = [(r, c) for r in range(r0, r1, block) for c in range(c0, c1, block)]
-                with ThreadPoolExecutor(max_workers=threads) as ex:
+                with ThreadPoolExecutor(max_workers=max(1, threads // 2)) as ex:
                     for r, c, nt, no in ex.map(count, jobs):
                         rr, cc = (r - r0) // F, (c - c0) // F
                         n_tall[rr:rr + nt.shape[0], cc:cc + nt.shape[1]] = nt
@@ -313,11 +378,26 @@ def tcc_meta_chm(transform, shape, version, ht_min, block=4096, factor=8, thread
                 for e, s in handles:
                     s.close()
                 st = src.window_transform(Window(c0, r0, c1 - c0, r1 - r0)) * rasterio.Affine.scale(F)
-                for arr, acc in ((n_tall, tall), (n_ok, valid)):
-                    tmp = np.zeros(shape, np.float32)
-                    reproject(arr, tmp, src_transform=st, src_crs=src.crs, dst_transform=transform,
-                              dst_crs=tm.LAEA_CRS, resampling=Resampling.sum)
-                    acc += tmp
+                # both layers in one warp; pixels with no valid count (blocks not read) are skipped, or GDAL would spend the
+                # same time on them. 128 MB = GDAL's default 64 MB per layer: the warp is split as for one layer, so the
+                # result is bit-identical to warping each layer by itself.
+                got = np.full((2,) + shape, -9999, np.float32)
+                reproject(np.stack([n_tall, n_ok]), got, src_transform=st, src_crs=src.crs, src_nodata=0, dst_transform=transform,
+                          dst_crs=tm.LAEA_CRS, dst_nodata=-9999, resampling=Resampling.sum, warp_mem_limit=128,
+                          UNIFIED_SRC_NODATA='YES')
+                got[got == -9999] = 0
+                rows, cols = np.nonzero(got[1].any(axis=1))[0], np.nonzero(got[1].any(axis=0))[0]
+                if not len(rows):
+                    return None
+                a, z, p, q = rows[0], rows[-1] + 1, cols[0], cols[-1] + 1
+                return a, p, got[0][a:z, p:q].copy(), got[1][a:z, p:q].copy()
+
+    with ThreadPoolExecutor(max_workers=files) as ex:
+        for r in ex.map(one, by_file):                       # added in file order
+            if r is not None:
+                a, p, t, v = r
+                tall[a:a + t.shape[0], p:p + t.shape[1]] += t
+                valid[a:a + v.shape[0], p:p + v.shape[1]] += v
     with np.errstate(invalid='ignore', divide='ignore'):
         return np.where(valid > 0.5, 100.0 * tall / valid, np.nan).astype(np.float32)
 
@@ -389,7 +469,8 @@ SOURCES = {
         options={'version': "canopy height map version, 'v2' (DINOv3, 2025) or 'v1' (Tolan et al. 2024); required",
                  'ht_min': 'canopy height (m) counted as tree cover; required'},
         required=['version', 'ht_min'],
-        read=lambda tr, sh, year, o, paths, emulate: tcc_meta_chm(tr, sh, o['version'], float(o['ht_min'])),
+        uses_need=True,
+        read=lambda tr, sh, year, o, paths, emulate, need=None: tcc_meta_chm(tr, sh, o['version'], float(o['ht_min']), need),
         label=lambda year, o: f"metachm{o['version']}_{_num(o['ht_min'])}m",
         describe=lambda year, o: (f"Meta/WRI canopy height map {o['version']}: percent of ~1 m pixels >= "
                                   f"{_num(o['ht_min'])} m in each 30 m cell (imagery dates vary by place; "
@@ -442,10 +523,12 @@ def _checked(source, options):
     return o
 
 
-def read_tcc(source, transform, shape, year, options=None, paths=None, emulate_gee=True):
-    """Tree cover (%) of a registered source on the grid; applies the generic `floor` option."""
+def read_tcc(source, transform, shape, year, options=None, paths=None, emulate_gee=True, need=None):
+    """Tree cover (%) of a registered source on the grid; applies the generic `floor` option.
+    need: boolean grid of the cells whose value is used; sources with uses_need may leave out the others."""
     o = _checked(source, options)
-    tcc = SOURCES[source]['read'](transform, shape, int(year), o, list(paths or []), emulate_gee)
+    kw = dict(need=need) if SOURCES[source].get('uses_need') else {}
+    tcc = SOURCES[source]['read'](transform, shape, int(year), o, list(paths or []), emulate_gee, **kw)
     if 'floor' in o:
         tcc = zero_floor(tcc, float(o['floor']))
     return tcc
