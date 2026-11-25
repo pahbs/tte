@@ -27,6 +27,7 @@ h1 { font-size: 30px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -.01em
 h2 { font-size: 15px; margin: 0; font-weight: 600 }
 p { margin: 0; max-width: 72ch }
 .lede { color: var(--ink2); font-size: 16px }
+.by { color: var(--ink2); font-size: 14px; margin: 0 0 6px }
 .top { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: start }
 @media (max-width: 900px) { .top { grid-template-columns: minmax(0, 1fr) } .mapfig { max-width: 480px } }
 .mapfig { margin: 0; display: grid; gap: 6px }
@@ -39,6 +40,7 @@ p { margin: 0; max-width: 72ch }
 .mapkey span { display: inline-flex; align-items: center; gap: 4px } .mapkey i { width: 11px; height: 11px; display: inline-block; border: 1px solid var(--line) } .mapkey i.nil { background: var(--masked) }
 .mapfig figcaption { font-size: 12px; color: var(--ink2); line-height: 1.4 }
 .mapfig a { color: var(--accent) }
+.diagram { margin: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff } .diagram img { display: block; width: 100%; min-width: 760px; height: auto }
 .scen { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 3px; margin: -3px }
 .scen button { font-size: 12.5px; line-height: 1.3; white-space: nowrap; flex: 0 0 auto }
 button { font: inherit; color: inherit }
@@ -82,6 +84,7 @@ text { font-family: var(--sans) }
   <header class="top">
     <div>
       <h1>Map interpretation guide for the forest pattern classification of the taiga-tundra ecotone</h1>
+      <p class="by">Paul Montesano, NASA Goddard Space Flight Center / ESSIC, U. Maryland-College Park</p>
       <p class="lede">The forest pattern classification of the TTE uses tree cover and its abruptness. Abruptness compares how much tree cover changes across a 30 m pixel with how much cover the pixel has. To explore this classification scheme, choose a landscape, then select any pixel to see its arithmetic. Arrow keys move the selection.</p>
     </div>
     <figure class="mapfig">
@@ -95,6 +98,7 @@ text { font-family: var(--sans) }
       <figcaption>The original TTE map (c2010, <a href="https://doi.org/10.1088/1748-9326/abb2c7">Montesano et al. 2020</a>) at 30 m, Seward Peninsula, Alaska (64.93° N 163.62° W).</figcaption>
     </figure>
   </header>
+  <figure class="diagram"><a href="img/tte_classes_diagram.png"><img src="img/tte_classes_diagram.png" width="1950" height="910" alt="Conceptual diagram of the taiga-tundra ecotone classes: tree canopy cover against abruptness, with example pixels for each of the 11 classes"></a></figure>
   <div class="row"><h2>Conceptual landscape types</h2><div class="scen" id="scen" role="group" aria-label="Conceptual landscape types"></div></div>
   <p id="about"></p>
   <div class="row"><h2>Corresponding arrays of map pixels</h2><div class="bench">
