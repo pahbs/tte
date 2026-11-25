@@ -10,7 +10,8 @@ can read COGs under dps_output, so overviews are written to
     = s3://maap-ops-workspace/montesano/dps_output/tte_overviews/<name>.tif
 
 Bands (uint8, nodata 255): 1 tte_domain (1), 2 tte_classification (1-11), 3 tcc (0-100 %).
-Each tile is read from its internal overviews (nearest), so classes stay classes.
+Each tile is read from its internal overviews (nearest), so classes stay classes. The GEE download tiles are the
+exception: their internal overviews are averages, so their domain and classes are sampled from full resolution.
 
     build_run_overview(collection, tcc_label)    a published run (DPS STAC items)
     build_reference_overview()                    the original c2010 GEE map (download tiles)
@@ -67,8 +68,9 @@ def mount_path(href):
     return tm.as_gdal_path(href)
 
 
-def _warp_tile(p, res, transform, shape):
-    """One tile's bands warped into its window of the overview grid: (r0, c0, {band: float32 array}) or None."""
+def _warp_tile(p, res, transform, shape, averaged=False):
+    """One tile's bands warped into its window of the overview grid: (r0, c0, {band: float32 array}) or None.
+    averaged: the tile's internal overviews are averages (GEE download), no use for classes."""
     warnings.filterwarnings('ignore', category=rasterio.errors.NotGeoreferencedWarning)
     with rasterio.Env(**tm.GDAL_ENV), rasterio.open(p) as src:
         # decimate to about the overview resolution (GDAL uses the file's internal overviews)
@@ -86,6 +88,11 @@ def _warp_tile(p, res, transform, shape):
         wt = transform * Affine.translation(c0, r0)
         a = src.read(list(BANDS.values()), out_shape=(len(BANDS), h, w),
                      resampling=Resampling.nearest).astype(np.float32)
+        if averaged:
+            with rasterio.open(p, OVERVIEW_LEVEL='NONE') as full:
+                for i, b in enumerate(BANDS):
+                    if b != 'tcc':
+                        a[i] = full.read(BANDS[b], out_shape=(h, w), resampling=Resampling.nearest)
         a[~np.isfinite(a)] = np.nan
         got = {}
         for i, b in enumerate(BANDS):
@@ -96,7 +103,7 @@ def _warp_tile(p, res, transform, shape):
         return r0, c0, got
 
 
-def build(paths, name, res=RES, progress=200, workers=12):
+def build(paths, name, res=RES, progress=200, workers=12, averaged=False):
     """Mosaic tile COGs (any CRS, bands as BANDS) into one overview COG; returns its s3 URL.
     Tiles are read in parallel (`workers` threads); where tiles overlap, the first one listed wins."""
     from concurrent.futures import ThreadPoolExecutor
@@ -106,7 +113,7 @@ def build(paths, name, res=RES, progress=200, workers=12):
 
     def work(p):
         try:
-            return _warp_tile(p, res, transform, shape)
+            return _warp_tile(p, res, transform, shape, averaged)
         except Exception as e:
             print('  skipped', p, str(e)[:120])
             return 'error'
@@ -167,4 +174,4 @@ def build_reference_overview(res=RES):
     ti = pd.read_csv(GEE_TINDEX).drop_duplicates('tile_num', keep='last')
     paths = [p.replace('/projects/', '/home/jovyan/') for p in ti.local_path]
     print(f'reference c2010: {len(paths)} tiles')
-    return build(paths, REFERENCE_NAME, res)
+    return build(paths, REFERENCE_NAME, res, averaged=True)
