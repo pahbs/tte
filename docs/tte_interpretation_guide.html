@@ -27,6 +27,18 @@ h1 { font-size: 30px; line-height: 1.15; margin: 0 0 6px; letter-spacing: -.01em
 h2 { font-size: 15px; margin: 0; font-weight: 600 }
 p { margin: 0; max-width: 72ch }
 .lede { color: var(--ink2); font-size: 16px }
+.top { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 28px; align-items: start }
+@media (max-width: 900px) { .top { grid-template-columns: minmax(0, 1fr) } .mapfig { max-width: 480px } }
+.mapfig { margin: 0; display: grid; gap: 6px }
+.mapwrap { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--masked) }
+.mapwrap img { display: block; width: 100%; height: auto; image-rendering: pixelated }
+/* map is 8.88 km wide, so 2 km = 22.5 % of it; the bar's 6 px side padding is added back */
+.scalebar { position: absolute; left: 8px; bottom: 8px; width: calc(22.5% + 12px); display: grid; gap: 3px; font: 600 11px/1 var(--sans); color: var(--ink); background: color-mix(in srgb, var(--panel) 88%, transparent); padding: 4px 6px; border-radius: 4px }
+.scalebar i { display: block; height: 4px; border: 1.5px solid var(--ink); border-top: 0 }
+.mapkey { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--ink2) }
+.mapkey span { display: inline-flex; align-items: center; gap: 4px } .mapkey i { width: 11px; height: 11px; display: inline-block; border: 1px solid var(--line) } .mapkey i.nil { background: var(--masked) }
+.mapfig figcaption { font-size: 12px; color: var(--ink2); line-height: 1.4 }
+.mapfig a { color: var(--accent) }
 .scen { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 3px; margin: -3px }
 .scen button { font-size: 12.5px; line-height: 1.3; white-space: nowrap; flex: 0 0 auto }
 button { font: inherit; color: inherit }
@@ -67,9 +79,21 @@ text { font-family: var(--sans) }
 </head>
 <body>
 <main>
-  <header>
-    <h1>Map interpretation guide for the forest pattern classification of the taiga-tundra ecotone</h1>
-    <p class="lede">The forest pattern classification of the TTE uses tree cover and its abruptness. Abruptness compares how much tree cover changes across a 30 m pixel with how much cover the pixel has. To explore this classification scheme, choose a landscape, then select any pixel to see its arithmetic. Arrow keys move the selection.</p>
+  <header class="top">
+    <div>
+      <h1>Map interpretation guide for the forest pattern classification of the taiga-tundra ecotone</h1>
+      <p class="lede">The forest pattern classification of the TTE uses tree cover and its abruptness. Abruptness compares how much tree cover changes across a 30 m pixel with how much cover the pixel has. To explore this classification scheme, choose a landscape, then select any pixel to see its arithmetic. Arrow keys move the selection.</p>
+    </div>
+    <figure class="mapfig">
+      <div class="mapwrap">
+        <img src="img/tte_map_example.png" width="900" height="600" alt="A 9 by 6 km piece of the original TTE map on the Seward Peninsula, Alaska: blocks of open forest classes to the south break up northward into sparse classes, ringed by red non-forest edge pixels.">
+        <span class="scalebar"><i></i>2 km</span>
+      </div>
+      <div class="mapkey" aria-label="Classes in this map">
+        <span><i style="background:#5255a3"></i>1</span><span><i style="background:#1796a3"></i>2</span><span><i style="background:#fdbf6f"></i>3</span><span><i style="background:#ff7f00"></i>4</span><span><i style="background:#ffffbf"></i>5</span><span><i style="background:#d9ef8b"></i>6</span><span><i style="background:#91cf60"></i>7</span><span><i style="background:#e00000"></i>10</span><span><i class="nil"></i>masked</span>
+      </div>
+      <figcaption>The original TTE map (c2010, <a href="https://doi.org/10.1088/1748-9326/abb2c7">Montesano et al. 2020</a>) at 30 m: Seward Peninsula, Alaska, 64.93° N 163.62° W. Treeline woodland breaks up northward into sparse patches.</figcaption>
+    </figure>
   </header>
   <div class="row"><h2>Conceptual landscape types</h2><div class="scen" id="scen" role="group" aria-label="Conceptual landscape types"></div></div>
   <p id="about"></p>
