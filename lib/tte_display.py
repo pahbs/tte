@@ -165,9 +165,10 @@ def update_page(collection, label, page=None):
     with open(os.path.join(repo, 'dps', 'tte_tiles_domain_pixels.csv')) as f:
         dom = {int(t) for t, px in (ln.split(',')[:2] for ln in f.read().split()[1:]) if float(px) > 0}
     n, total = (len(have & dom) if have else n), len(dom)
-    maps = {'ref': {'url': f'{OUT_S3}/{REFERENCE_NAME}.tif', 'short': 'c. 2010', 'label': 'TTE classification c. 2010 (Landsat tree cover)'},
-            'run': {'url': f'{OUT_S3}/{os.path.basename(newest)}', 'short': 'Meta canopy height',
-                    'label': 'TTE classification from Meta/WRI canopy height v2 (trees 2 m or taller)',
+    maps = {'ref': {'url': f'{OUT_S3}/{REFERENCE_NAME}.tif', 'short': 'c. 2010',
+                    'label': 'c. 2010: derived from boreal-calibrated tree cover (≥ 2 m tall) in N. America & Hansen 2010 tree cover in Eurasia'},
+            'run': {'url': f'{OUT_S3}/{os.path.basename(newest)}', 'short': 'c. 2020',
+                    'label': 'c. 2020: derived from tree cover computed from Meta canopy height (v2) estimates for pixels ≥ 2 m tall',
                     'progress': f'{n:,} of {total:,} tiles as of {built}', 'done': n >= total},
             'updated': time.strftime('%Y-%m-%d')}
     with open(page, encoding='utf-8') as f:
