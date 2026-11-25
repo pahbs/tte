@@ -74,7 +74,7 @@ button { font: inherit; color: inherit }
 .notes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding: 0; margin: 0; list-style: none }
 .notes button { text-align: left; width: 100%; height: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; cursor: pointer; display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start; font-size: 13.5px; line-height: 1.45 }
 .notes button:hover { border-color: var(--accent) } .notes em { font-style: normal; width: 20px; height: 20px; border-radius: 50%; background: var(--sel); color: var(--bg); font: 700 11px/20px var(--sans); text-align: center }
-.row { display: grid; gap: 8px } .tr { overflow-x: auto } .tr svg { display: block; width: 100%; min-width: 480px; height: auto }
+.row { display: grid; gap: 8px; min-width: 0 } .row > * { min-width: 0 } .row > p { max-width: none; color: var(--ink2) } .tr { overflow-x: auto } .tr svg { display: block; width: 100%; min-width: 480px; height: auto }
 .rules { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); border-top: 1px solid var(--line); padding-top: 20px; color: var(--ink2); font-size: 14px } .rules h2 { color: var(--ink); margin-bottom: 4px }
 text { font-family: var(--sans) }
 </style>
@@ -85,7 +85,7 @@ text { font-family: var(--sans) }
     <div>
       <h1>Map interpretation guide for the forest pattern classification of the taiga-tundra ecotone</h1>
       <p class="by">Paul Montesano, NASA Goddard Space Flight Center / ESSIC, U. Maryland-College Park</p>
-      <p class="lede">The forest pattern classification of the TTE uses tree cover and its abruptness. Abruptness compares how much tree cover changes across a 30 m pixel with how much cover the pixel has. To explore this classification scheme, choose a landscape, then select any pixel to see its arithmetic. Arrow keys move the selection.</p>
+      <p class="lede">The forest pattern classification of the TTE uses classes of tree cover (sparse, open, intermediate & closed) and its abruptness (uniform, diffuse, abrupt). Abruptness is a metric that compares how much tree cover changes across a 30 m pixel with how much cover the pixel has.</p>
     </div>
     <figure class="mapfig">
       <div class="mapwrap">
@@ -98,8 +98,9 @@ text { font-family: var(--sans) }
       <figcaption>The original TTE map (c2010, <a href="https://doi.org/10.1088/1748-9326/abb2c7">Montesano et al. 2020</a>) at 30 m, Seward Peninsula, Alaska (64.93° N 163.62° W).</figcaption>
     </figure>
   </header>
-  <figure class="diagram"><a href="img/tte_classes_diagram.png"><img src="img/tte_classes_diagram.png" width="1950" height="910" alt="Conceptual diagram of the taiga-tundra ecotone classes: tree canopy cover against abruptness, with example pixels for each of the 11 classes"></a></figure>
-  <div class="row"><h2>Conceptual landscape types</h2><div class="scen" id="scen" role="group" aria-label="Conceptual landscape types"></div></div>
+  <div class="row"><h2>Conceptual model graphic</h2><p>To explore this classification scheme, examine the conceptual model presented here.</p>
+  <figure class="diagram"><a href="img/tte_classes_diagram.png"><img src="img/tte_classes_diagram.png" width="1950" height="910" alt="Conceptual diagram of the taiga-tundra ecotone classes: tree canopy cover against abruptness, with example pixels for each of the 11 classes"></a></figure></div>
+  <div class="row"><h2>Conceptual landscape types</h2><p>Interact with this model to understand the classification in detail: choose a landscape, then select any pixel to see its arithmetic. Arrow keys move the selection.</p><div class="scen" id="scen" role="group" aria-label="Conceptual landscape types"></div></div>
   <p id="about"></p>
   <div class="row"><h2>Corresponding arrays of map pixels</h2><div class="bench">
     <section aria-label="Tree cover">
