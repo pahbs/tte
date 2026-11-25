@@ -54,8 +54,11 @@ def find_reference(user='montesano', tag=REFERENCE_TAG):
     DPS STAC Item Generator (generate_stac_items) with job tag `tag` (see dps/DPS_tte_map.ipynb).
     Also its 1 km overview (tte_overview.build_reference_overview()), which maps it zoomed out, or at
     every zoom while the full-resolution tiles are not published.
-    Returns dict(collection, tag, asset, overview), without the keys of what does not exist, or None."""
+    Its classes always come from its 30 m display COG (lib/tte_display.py): the GEE tiles' own overviews average class
+    numbers, so classes read from them (zoomed out, or in the 1 km overview) are wrong. The 1 km overview gives tree cover.
+    Returns dict(collection, tag, asset, overview, display), without the keys of what does not exist."""
     from pystac_client import Client
+    import tte_display as td
     import tte_overview as ov
     ref = {}
     client = Client.open(STAC_API)
@@ -67,7 +70,8 @@ def find_reference(user='montesano', tag=REFERENCE_TAG):
             break
     if os.path.exists(ov.overview_path(ov.REFERENCE_NAME)):
         ref['overview'] = ov.overview_s3(ov.REFERENCE_NAME)
-    return ref or None
+    ref['display'] = f'{td.OUT_S3}/{td.REFERENCE_NAME}.tif'
+    return ref
 
 
 def label_filter(tcc_label=None):
@@ -275,7 +279,7 @@ def _layer(m, name, show, detail=None, overview=None, min_zoom=5, opacity=1.0):
 
 def review_map(show, bbox=None, reference=None, asset='tte', zoom=6, min_zoom=5):
     """folium map of the runs in `show`, a list of (collection, run label) pairs (see published_runs).
-    Each run gets its own layers; the first run's classes and tile grid are switched on.
+    Each run gets its own layers; the first run's tree cover, classes (on top) and tile grid are switched on.
     bbox: lon/lat box (W, S, E, N) to limit the tiles, or None for all published tiles of the runs.
     reference: the original c2010 map (find_reference()), added as its own layers and in the click query."""
     import folium
@@ -301,7 +305,7 @@ def review_map(show, bbox=None, reference=None, asset='tte', zoom=6, min_zoom=5)
     ref = None
     if reference:
         ref = dict(name=REFERENCE_NAME, asset=reference.get('asset'), overview=reference.get('overview'),
-                   search_id=None)
+                   display=reference.get('display'), search_id=None)
         if reference.get('collection'):
             ref['search_id'] = register_search(reference['collection'], bbox=bbox, tag=reference['tag'])
             print(f"{REFERENCE_NAME}: items tagged {reference['tag']} in {reference['collection']}")
@@ -326,11 +330,11 @@ def review_map(show, bbox=None, reference=None, asset='tte', zoom=6, min_zoom=5)
         _layer(m, f'{REFERENCE_NAME}: tree canopy cover (0-50 %)', False,
                detail(ref, 5, **tcc_kw), coarse(ref, 3, **tcc_kw), min_zoom)
         _layer(m, f'{REFERENCE_NAME}: TTE classes', not runs,
-               detail(ref, 4, **cls_kw), coarse(ref, 2, **cls_kw), min_zoom)
+               None, cog_tile_url(ref['display'], 1, **cls_kw), min_zoom)       # 30 m, every zoom
     fields_all = list(TOOLTIP_FIELDS)
     for i, r in enumerate(runs):
         first = i == 0
-        _layer(m, f"{r['name']}: tree canopy cover (0-50 %)", False,
+        _layer(m, f"{r['name']}: tree canopy cover (0-50 %)", first,     # on, under the classes
                detail(r, 5, **tcc_kw), coarse(r, 3, **tcc_kw), min_zoom)
         _layer(m, f"{r['name']}: abruptness (-1 uniform to +1 abrupt)", False,
                detail(r, 3, rescale='-1,1', colormap_name='rdylbu_r'), None, min_zoom)
