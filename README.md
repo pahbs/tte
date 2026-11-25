@@ -11,6 +11,8 @@
 [TTE Interpretation Guide](https://pahbs.github.io/tte/docs/tte_interpretation_guide.html): interactive conceptual landscapes of tree cover pixels.
 A short walkthrough of the guide is in [this post](https://pahbs.github.io/post/2026-11-25-tte-map-interpretation-guide/).
 
+[TTE Review Map](https://pahbs.github.io/tte/docs/tte_review_map.html): the circumpolar TTE maps, circa 2010 and from Meta canopy height.
+
 This mapping of TTE pattern uses maps of tree canopy cover across the boreal-tundra ecological transition zone. It is built off of the calculation of tree cover "abruptness", which is the normalized difference between the spatial rate of change in tree canopy cover and the tree canopy cover itself, from −1 (uniform) to +1 (abrupt).
 
 <img src="docs/img/tte_boreal_polar_map.png" align="right" width="380" alt="Circumpolar map of the taiga-tundra ecotone forest structure pattern classes (circa 2010)">
