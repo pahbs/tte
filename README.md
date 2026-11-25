@@ -9,6 +9,7 @@
 ## Explore the classification concept with the TTE interpretation guide
 
 [TTE Interpretation Guide](https://pahbs.github.io/tte/docs/tte_interpretation_guide.html): interactive conceptual landscapes of tree cover pixels.
+A short walkthrough of the guide is in [this post](https://pahbs.github.io/post/2026-11-25-tte-map-interpretation-guide/).
 
 This mapping of TTE pattern uses maps of tree canopy cover across the boreal-tundra ecological transition zone. It is built off of the calculation of tree cover "abruptness", which is the normalized difference between the spatial rate of change in tree canopy cover and the tree canopy cover itself, from −1 (uniform) to +1 (abrupt).
 
